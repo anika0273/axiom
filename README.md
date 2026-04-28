@@ -1,0 +1,3 @@
+# Axiom
+
+Axiom is an intelligent A/B testing and experimentation platform that combines rigorous statistical analysis with machine learning and AI-generated insights — giving product teams a single place to design experiments, assign traffic, monitor live results, and receive plain-language recommendations powered by Claude. Built on FastAPI and PostgreSQL for the backend, React and Recharts for the dashboard, and deployed via Docker and Railway, Axiom covers the full experiment lifecycle from hypothesis creation through post-experiment reporting, with first-class support for frequentist significance testing, Bayesian updating, and ML-assisted variance reduction (CUPED).
