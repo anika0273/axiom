@@ -8,3 +8,20 @@ filterwarnings = [
     "ignore::RuntimeWarning",
     "ignore::pytest.PytestCollectionWarning",
 ]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["app"]
+src_paths = ["backend"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_return_any = false
+strict = false
