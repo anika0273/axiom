@@ -1,5 +1,23 @@
 # Axiom — AI-Powered A/B Testing Platform
 
+## Build Status — Phase 1 Complete ✓
+
+| Component | Status | Detail |
+|---|---|---|
+| Stats engine | ✓ 430/430 tests passing | `backend/app/stats/` — z-test, t-test, CUPED, sequential, corrections, power |
+| FastAPI backend | ✓ 28/28 API tests passing | `backend/app/api/v1/` — stats endpoints, middleware, rate limiting |
+| Docker + PostgreSQL | ✓ Both containers healthy | `docker-compose.yml` — multi-stage build, non-root user, healthchecks |
+| Database schema | ✓ Migration applied | 4 tables: `experiments`, `experiment_results`, `experiment_metrics`, `ai_interactions` |
+| Sample data | ✓ Seeds loaded | `backend/migrations/seeds.py` — one complete experiment with result, metrics, AI log |
+| Stats coverage | 96% line coverage | Gaps: power.py edge branches (86%), engine.py error paths (96%) |
+
+**Run command:** `PYTHONPATH=backend uvicorn app.main:app --host 0.0.0.0 --port 8000`
+**Full stack:** `docker compose up -d` (requires `.env` from `.env.example`)
+**Tests:** `PYTHONPATH=backend pytest backend/tests/ --cov=backend/app/stats`
+**Migration:** `docker compose exec backend alembic upgrade head`
+
+---
+
 ## What Axiom Does
 
 Axiom is an intelligent experimentation platform that lets teams design, run, and analyze A/B tests with statistical rigor and ML-assisted insights. It handles experiment lifecycle management (creation, audience assignment, traffic splitting), computes frequentist and Bayesian statistics on results, and uses Claude to generate plain-language summaries and recommendations. A React dashboard surfaces live experiment status, metric charts, and AI-generated reports.

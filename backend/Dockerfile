@@ -20,6 +20,7 @@ RUN groupadd --system axiom && useradd --system --gid axiom axiom
 
 WORKDIR /app
 
+COPY alembic.ini .
 COPY backend/ ./backend/
 
 RUN chown -R axiom:axiom /app
