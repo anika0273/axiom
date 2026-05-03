@@ -1,6 +1,6 @@
 # Axiom Stats Engine — Validation Report
 
-> Generated: 2026-05-02 17:24 UTC  
+> Generated: 2026-05-03 21:15 UTC  
 > Total: 42 scenarios | Passed: 42 | Failed: 0
 
 ---
