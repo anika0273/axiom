@@ -125,7 +125,7 @@ def check_srm(
     # on the 2×2 contingency table [observed; expected].
     chi2_stat, p_value, _dof, _ex = chi2_contingency(
         np.array([[total_treatment, total_control],
-                  [int(expected_treatment), int(expected_control)]]),
+                  [expected_treatment, expected_control]]),
         correction=False,
     )
 
@@ -267,7 +267,7 @@ def check_cusum_drift(
     Args:
         control_metric: Daily control group metric values.
         treatment_metric: Daily treatment group metric values.
-        threshold: CUSUM threshold in standardised units. Default 5.0.
+        threshold: CUSUM threshold in standardised units. Default 10.0.
 
     Returns:
         ValidationCheck with severity "info", "warning", or "critical".
