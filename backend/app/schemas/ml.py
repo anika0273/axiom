@@ -7,9 +7,11 @@ the public API contract independently of internal dataclasses.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 # ── Shared envelope ────────────────────────────────────────────────────────────
@@ -220,3 +222,140 @@ class ValidateResponse(BaseModel):
 
     data: ValidateData
     meta: MetaEmpty = Field(default_factory=MetaEmpty)
+
+
+# ── Unified ML analysis schemas ────────────────────────────────────────────────
+
+
+class MLAnalysisRequest(BaseModel):
+    """Inputs for POST /api/v1/ml/analyze."""
+
+    control_values: list[float] = Field(
+        ...,
+        min_length=10,
+        description="Outcome per subject in the control group (min 10).",
+    )
+    treatment_values: list[float] = Field(
+        ...,
+        min_length=10,
+        description="Outcome per subject in the treatment group (min 10).",
+    )
+    user_features: list[dict[str, float]] | None = Field(
+        None,
+        description="Per-subject feature matrix.  Enables HTE and segment modules.",
+    )
+    daily_metrics: list[DailyMetricRecord] | None = Field(
+        None,
+        description="Daily time-series data.  Enables anomaly and novelty modules.",
+    )
+    experiment_id: UUID | None = Field(
+        None,
+        description="If provided, the result is stored in experiment_results.",
+    )
+
+
+class ModuleStatusOut(BaseModel):
+    """Execution record for one ML module."""
+
+    module: str
+    status: Literal["completed", "skipped", "failed"]
+    skip_reason: str | None = None
+    duration_seconds: float
+
+
+class MLAnalysisResultData(BaseModel):
+    """Payload inside a successful ML analysis response."""
+
+    overall_verdict: Literal["CLEAN", "NEEDS_REVIEW", "INVALID"]
+    key_insights: list[str]
+    capability_report: list[ModuleStatusOut]
+    can_trust_results: bool
+    recommendation: str
+    experiment_id: UUID | None = None
+    result_id: UUID | None = None
+
+
+class MLAnalysisResponse(BaseModel):
+    """Response envelope for POST /api/v1/ml/analyze."""
+
+    data: MLAnalysisResultData
+    meta: MetaEmpty = Field(default_factory=MetaEmpty)
+
+
+# ── Experiment CRUD schemas ────────────────────────────────────────────────────
+
+
+class ExperimentCreate(BaseModel):
+    """Request body for POST /api/v1/experiments."""
+
+    name: str = Field(..., min_length=1, max_length=500)
+    description: str | None = None
+    hypothesis: str | None = None
+    experiment_type: Literal["proportion", "mean", "ratio"]
+    baseline_metric: float = Field(..., gt=0)
+    mde: float = Field(..., gt=0, lt=1, description="Minimum detectable effect (0–1).")
+    alpha: float = Field(0.05, gt=0, lt=1)
+    power: float = Field(0.80, gt=0, lt=1)
+    daily_traffic_estimate: int | None = Field(None, gt=0)
+
+
+class ExperimentStatusUpdate(BaseModel):
+    """Request body for PATCH /api/v1/experiments/{id}/status."""
+
+    status: Literal["running", "completed", "stopped_early"]
+
+
+class StoredResultSummary(BaseModel):
+    """Compact summary of a stored ExperimentResult row."""
+
+    id: UUID
+    overall_verdict: str | None = None
+    can_trust_results: bool | None = None
+    recommendation: str | None = None
+    key_insights: list[str] = Field(default_factory=list)
+    analyzed_at: datetime
+
+
+class ExperimentResponse(BaseModel):
+    """Response body for experiment CRUD endpoints."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    description: str | None = None
+    status: str
+    experiment_type: str
+    hypothesis: str | None = None
+    baseline_metric: float
+    mde: float
+    alpha: float
+    power: float
+    daily_traffic_estimate: int | None = None
+    created_at: datetime
+    updated_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    latest_result: StoredResultSummary | None = None
+
+
+class ExperimentEnvelope(BaseModel):
+    """Single-experiment response envelope."""
+
+    data: ExperimentResponse
+    meta: MetaEmpty = Field(default_factory=MetaEmpty)
+
+
+class ExperimentListMeta(BaseModel):
+    """Pagination metadata for experiment list responses."""
+
+    total: int
+    page: int
+    page_size: int
+
+
+class ExperimentListEnvelope(BaseModel):
+    """Paginated list response envelope."""
+
+    data: list[ExperimentResponse]
+    meta: ExperimentListMeta

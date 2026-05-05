@@ -76,11 +76,13 @@ def create_app() -> FastAPI:
     )
 
     # ── Routers ────────────────────────────────────────────────────────────────
+    from app.api.v1.experiments import router as experiments_router
     from app.api.v1.ml import router as ml_router
     from app.api.v1.stats import router as stats_router
 
     app.include_router(stats_router)
     app.include_router(ml_router)
+    app.include_router(experiments_router)
 
     return app
 

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+
 from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.session import AsyncSessionLocal
 from app.stats.engine import (
     ExperimentAnalysis,
     ExperimentConfig,
@@ -70,3 +74,14 @@ def get_stats_engine() -> StatsEngine:
 def get_request_id(request: Request) -> str:
     """Extract the request ID set by RequestIDMiddleware."""
     return getattr(request.state, "request_id", "unknown")
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Yield an async database session; commit on success, rollback on error."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

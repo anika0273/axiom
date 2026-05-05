@@ -1,38 +1,47 @@
 """ML API router — /api/v1/ml/*.
 
-Exposes the three ML modules (HTE, segments, anomaly) as stateless REST
-endpoints.  Each request deserialises JSON into pandas structures, calls the
-relevant ML function, and serialises the result back to the response envelope.
+Exposes ML modules as REST endpoints:
+  - Stateless: HTE, segments, validate (no DB)
+  - DB-backed:  analyze (full pipeline + optional persistence), get analysis
 
 Rate limits (via slowapi):
   - HTE + segments: 30 req/min per IP (expensive computation)
   - validate:       60 req/min per IP (cheaper; four lightweight checks)
+  - analyze:        20 req/min per IP
+  - get analysis:   60 req/min per IP
 """
 
 import logging
-from typing import Annotated
+from uuid import UUID
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_request_id, limiter
+from app.dependencies import get_db, get_request_id, limiter
 from app.ml.anomaly import validate_experiment
 from app.ml.hte import fit_hte_model
 from app.ml.segments import discover_segments
+from app.repositories import result_repo
 from app.schemas.ml import (
     HTEData,
     HTERequest,
     HTEResponse,
+    MLAnalysisRequest,
+    MLAnalysisResponse,
+    ModuleStatusOut,
     SegmentProfileOut,
     SegmentsData,
     SegmentsRequest,
     SegmentsResponse,
+    StoredResultSummary,
     ValidateData,
     ValidateRequest,
     ValidateResponse,
     ValidationCheckOut,
 )
+from app.services import analysis_service
 
 logger = logging.getLogger(__name__)
 
@@ -236,4 +245,103 @@ async def run_validate(
             recommendation=validation.recommendation,
             can_trust_results=bool(validation.can_trust_results),
         ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Full ML analysis (orchestrated)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/analyze",
+    response_model=MLAnalysisResponse,
+    summary="Run full ML analysis pipeline",
+    description=(
+        "Orchestrates all four ML modules (anomaly, novelty, HTE, segments) "
+        "from a single request.  Modules are skipped when their prerequisite "
+        "data is absent.  If experiment_id is provided, the result is persisted "
+        "in experiment_results.full_analysis_json."
+    ),
+)
+@limiter.limit("20/minute")
+async def run_analyze(
+    request: Request,
+    response: Response,
+    body: MLAnalysisRequest,
+    db: AsyncSession = Depends(get_db),
+) -> MLAnalysisResponse:
+    """Execute the ML pipeline and return a unified verdict with key insights."""
+    req_id = get_request_id(request)
+    logger.info(
+        "analyze req=%s n_ctrl=%d n_trt=%d exp_id=%s",
+        req_id,
+        len(body.control_values),
+        len(body.treatment_values),
+        body.experiment_id,
+    )
+
+    try:
+        result_data = await analysis_service.run_analysis(body, db=db)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return MLAnalysisResponse(data=result_data)
+
+
+# ---------------------------------------------------------------------------
+# Retrieve stored ML analysis for an experiment
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/experiments/{experiment_id}/analysis",
+    response_model=MLAnalysisResponse,
+    summary="Retrieve stored ML analysis for an experiment",
+    description=(
+        "Returns the most recent ML analysis result persisted for the given "
+        "experiment.  Returns 404 when no analysis has been run yet."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_experiment_analysis(
+    request: Request,
+    response: Response,
+    experiment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> MLAnalysisResponse:
+    """Fetch the latest stored ML result for experiment_id."""
+    req_id = get_request_id(request)
+    logger.info("get_analysis req=%s exp_id=%s", req_id, experiment_id)
+
+    record = await result_repo.get_latest_result(db, experiment_id)
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No ML analysis found for experiment {experiment_id}.",
+        )
+
+    payload = record.full_analysis_json or {}
+    result_data = MLAnalysisResultData_from_json(payload, record, experiment_id)
+    return MLAnalysisResponse(data=result_data)
+
+
+def MLAnalysisResultData_from_json(
+    payload: dict,
+    record,
+    experiment_id: UUID,
+) -> "MLAnalysisResponse.model_fields['data'].annotation":  # type: ignore[return]
+    """Reconstruct MLAnalysisResultData from a stored JSONB payload."""
+    from app.schemas.ml import MLAnalysisResultData
+
+    return MLAnalysisResultData(
+        overall_verdict=payload.get("overall_verdict", "NEEDS_REVIEW"),
+        key_insights=payload.get("key_insights", []),
+        capability_report=[
+            ModuleStatusOut(**s) for s in payload.get("capability_report", [])
+        ],
+        can_trust_results=payload.get("can_trust_results", False),
+        recommendation=payload.get("recommendation", ""),
+        experiment_id=experiment_id,
+        result_id=record.id,
     )
