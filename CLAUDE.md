@@ -1,7 +1,8 @@
 # Axiom — AI-Powered A/B Testing Platform
 
-## Build Status — Phase 1 Complete ✓
+## Build Status — Phase 2 Complete ✓ (2026-05-05)
 
+### Phase 1 — Stats Engine & API
 | Component | Status | Detail |
 |---|---|---|
 | Stats engine | ✓ 430/430 tests passing | `backend/app/stats/` — z-test, t-test, CUPED, sequential, corrections, power |
@@ -11,9 +12,32 @@
 | Sample data | ✓ Seeds loaded | `backend/migrations/seeds.py` — one complete experiment with result, metrics, AI log |
 | Stats coverage | 96% line coverage | Gaps: power.py edge branches (86%), engine.py error paths (96%) |
 
+### Phase 2 — ML Engine (complete 2026-05-05)
+| Component | Status | Detail |
+|---|---|---|
+| ML modules | ✓ 5 modules | `backend/app/ml/` — hte, segments, anomaly, novelty, engine |
+| ML API endpoints | ✓ 93% coverage | `backend/app/api/v1/ml.py` — analyse, validate, hte, segments, novelty |
+| Sample datasets | ✓ 3 datasets | `backend/app/data/samples/` — ecommerce, saas, marketplace (pre-computed) |
+| ML test suite | ✓ 751/751 passing | `backend/tests/ml/` — unit tests for all five modules |
+| Combined coverage | 85% overall | `backend/app/ml/` all modules ≥ 93% |
+| ML docs | ✓ Complete | `docs/ml/EXPLAINERS.md`, `docs/ml/DECISIONS.md` |
+| Smoke test | ✓ Passing | `scripts/smoke_test_ml.py` — end-to-end regression check |
+
+### ML Modules (`backend/app/ml/`)
+| Module | What it does |
+|---|---|
+| `hte.py` | XGBoost + interaction terms: estimates per-user treatment effects and ranks treatment modifiers via SHAP |
+| `segments.py` | KMeans segment discovery with silhouette-optimal k, per-segment significance tests, and rollout recommendations |
+| `anomaly.py` | SRM (chi-squared), IsolationForest outlier days, CUSUM drift, and volume-spike validity checks |
+| `novelty.py` | Weighted linear regression classifies daily lift trajectory as STABLE / NOVELTY / LEARNING |
+| `engine.py` | Orchestrator: runs anomaly+novelty sequentially, HTE+segments in parallel via ThreadPoolExecutor, synthesises a verdict |
+
 **Run command:** `PYTHONPATH=backend uvicorn app.main:app --host 0.0.0.0 --port 8000`
 **Full stack:** `docker compose up -d` (requires `.env` from `.env.example`)
-**Tests:** `PYTHONPATH=backend pytest backend/tests/ --cov=backend/app/stats`
+**Tests (all):** `PYTHONPATH=backend .venv/bin/python -m pytest backend/tests/ --cov=backend/app --cov-report=term-missing -q`
+**Tests (ML only):** `PYTHONPATH=backend .venv/bin/python -m pytest backend/tests/ml/ -q`
+**Tests (stats only):** `PYTHONPATH=backend .venv/bin/python -m pytest backend/tests/stats/ backend/tests/unit/ -q`
+**Smoke test:** `PYTHONPATH=backend python scripts/smoke_test_ml.py`
 **Migration:** `docker compose exec backend alembic upgrade head`
 
 ---
