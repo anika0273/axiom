@@ -347,3 +347,62 @@ def test_check_balance_warns_between_limits():
     t = pd.Series([0.0] * 75 + [1.0] * 25)
     with pytest.warns(UserWarning):
         _check_treatment_balance(t)
+
+
+# ---------------------------------------------------------------------------
+# All-identical-features edge case
+# ---------------------------------------------------------------------------
+
+
+def test_all_identical_features_raises():
+    """All users share the same non-zero feature vector → zero variance everywhere → raises."""
+    n = 200
+    rng = np.random.default_rng(0)
+    t = pd.Series((rng.random(n) < 0.5).astype(float))
+    y = pd.Series(rng.standard_normal(n))
+    # Every row is identical — all feature columns have zero variance.
+    X = pd.DataFrame({"x0": np.full(n, 3.14), "x1": np.full(n, 2.71)})
+    with pytest.raises(Exception):
+        fit_hte_model(X, t, y)
+
+
+# ---------------------------------------------------------------------------
+# Zero treatment effect
+# ---------------------------------------------------------------------------
+
+
+def test_zero_treatment_effect_no_error():
+    """Zero true ATE → model still fits and returns HTEModel without error."""
+    rng = np.random.default_rng(0)
+    n = 300
+    x = rng.standard_normal(n)
+    t = pd.Series((rng.random(n) < 0.5).astype(float))
+    y = pd.Series(0.5 * x + rng.standard_normal(n) * 0.1)
+    X = pd.DataFrame({"x": x})
+    model = fit_hte_model(X, t, y, random_state=0)
+    assert isinstance(model, HTEModel)
+
+
+def test_zero_treatment_effect_ate_near_zero():
+    """When true treatment effect is zero, ATE estimate should be close to zero."""
+    rng = np.random.default_rng(42)
+    n = 600
+    x = rng.standard_normal(n)
+    t = pd.Series((rng.random(n) < 0.5).astype(float))
+    y = pd.Series(0.3 * x + rng.standard_normal(n) * 0.05)
+    X = pd.DataFrame({"x": x})
+    model = fit_hte_model(X, t, y, random_state=42)
+    assert abs(model.ate) < 0.15, f"Expected ATE ≈ 0, got {model.ate:.4f}"
+
+
+def test_zero_treatment_effect_top_interactions_still_returned():
+    """With no true heterogeneity, top_interactions list must still be returned."""
+    rng = np.random.default_rng(5)
+    n = 300
+    x = rng.standard_normal(n)
+    t = pd.Series((rng.random(n) < 0.5).astype(float))
+    y = pd.Series(0.3 * x + rng.standard_normal(n) * 0.1)
+    X = pd.DataFrame({"x": x})
+    model = fit_hte_model(X, t, y, random_state=5)
+    assert len(model.top_interactions) == X.shape[1]
+    assert all(name.endswith("_x_treat") for name in model.top_interactions)

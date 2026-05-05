@@ -426,3 +426,106 @@ def test_describe_segment_uses_prose_not_cluster_label():
     )
     assert "cluster_2" not in desc
     assert "Segment 2" in desc
+
+
+# ---------------------------------------------------------------------------
+# Single-feature dataset
+# ---------------------------------------------------------------------------
+
+
+def test_single_feature_dataset_returns_valid_analysis():
+    """discover_segments handles a dataset with exactly one input feature."""
+    rng = np.random.default_rng(42)
+    n = 300
+    x = np.concatenate([rng.normal(-3.0, 0.3, n // 2), rng.normal(3.0, 0.3, n // 2)])
+    t = pd.Series((rng.random(n) < 0.5).astype(float))
+    y = pd.Series(x * 0.3 + t * 0.2 + rng.normal(0, 0.2, n))
+    X = pd.DataFrame({"x": x})
+    result = discover_segments(X, t, y)
+    assert isinstance(result, SegmentAnalysis)
+    assert len(result.segments) >= 2
+    for seg in result.segments:
+        assert isinstance(seg, SegmentProfile)
+
+
+def test_single_feature_top_features_key_is_valid_column():
+    """Single-feature top_features must reference the one column that exists."""
+    rng = np.random.default_rng(42)
+    n = 300
+    x = np.concatenate([rng.normal(-3.0, 0.3, n // 2), rng.normal(3.0, 0.3, n // 2)])
+    t = pd.Series((rng.random(n) < 0.5).astype(float))
+    y = pd.Series(x * 0.3 + t * 0.2 + rng.normal(0, 0.2, n))
+    X = pd.DataFrame({"x": x})
+    result = discover_segments(X, t, y)
+    for seg in result.segments:
+        for col in seg.top_features:
+            assert col == "x", f"Expected column 'x', got {col!r}"
+
+
+# ---------------------------------------------------------------------------
+# Perfectly balanced clusters (equal size)
+# ---------------------------------------------------------------------------
+
+
+def test_perfectly_balanced_clusters_size_pcts_sum_to_one():
+    """Two tight equal-count clusters; size_pcts must still sum to 1.0."""
+    rng = np.random.default_rng(7)
+    n_per = 200
+    x0_a = rng.normal(-5.0, 0.2, n_per)
+    x0_b = rng.normal(5.0, 0.2, n_per)
+    x1 = rng.normal(0.0, 0.2, n_per * 2)
+    x0 = np.concatenate([x0_a, x0_b])
+    t = pd.Series((rng.random(n_per * 2) < 0.5).astype(float))
+    y = pd.Series(x0 * 0.2 + t * 0.3 + rng.normal(0, 0.1, n_per * 2))
+    X = pd.DataFrame({"x0": x0, "x1": x1})
+    result = discover_segments(X, t, y, max_k=4)
+    total = sum(s.size_pct for s in result.segments)
+    assert abs(total - 1.0) < 1e-6
+
+
+def test_perfectly_balanced_clusters_each_segment_nonempty():
+    """Every discovered segment must contain at least some subjects (size_pct > 0)."""
+    rng = np.random.default_rng(7)
+    n_per = 200
+    x0_a = rng.normal(-5.0, 0.2, n_per)
+    x0_b = rng.normal(5.0, 0.2, n_per)
+    x1 = rng.normal(0.0, 0.2, n_per * 2)
+    x0 = np.concatenate([x0_a, x0_b])
+    t = pd.Series((rng.random(n_per * 2) < 0.5).astype(float))
+    y = pd.Series(x0 * 0.2 + t * 0.3 + rng.normal(0, 0.1, n_per * 2))
+    X = pd.DataFrame({"x0": x0, "x1": x1})
+    result = discover_segments(X, t, y, max_k=4)
+    for seg in result.segments:
+        assert seg.size_pct > 0.0, f"Segment {seg.id} has zero subjects"
+
+
+# ---------------------------------------------------------------------------
+# overall_recommendation is actionable (mentions specific segments)
+# ---------------------------------------------------------------------------
+
+
+def test_overall_recommendation_mentions_specific_segments_or_fallback():
+    """Recommendation must reference specific segment IDs, or use the no-lift fallback."""
+    import re
+
+    X, t, y = _make_three_clusters()
+    result = discover_segments(X, t, y)
+    rec = result.overall_recommendation
+    # Matches "segment 0", "segments 0, 1, 2", "Investigate segment 1", etc.
+    has_segment_id = re.search(r"segments?\s+\d", rec, re.IGNORECASE) is not None
+    has_fallback = "no segments" in rec.lower()
+    assert has_segment_id or has_fallback, (
+        f"Recommendation must be actionable (mention specific segments or fallback), "
+        f"got: {rec!r}"
+    )
+
+
+def test_overall_recommendation_always_contains_ate_value():
+    """Recommendation must always end with 'Overall ATE: ±N.NNN.' for machine readability."""
+    import re
+
+    X, t, y = _make_three_clusters()
+    result = discover_segments(X, t, y)
+    assert re.search(r"Overall ATE: [+-]?\d+\.\d+\.", result.overall_recommendation), (
+        f"Expected 'Overall ATE: ...' in recommendation, got: {result.overall_recommendation!r}"
+    )

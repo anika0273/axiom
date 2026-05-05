@@ -393,3 +393,114 @@ def test_high_confidence_with_many_tight_days() -> None:
     se = pd.Series([0.001] * 21)
     traj = analyze_effect_trajectory(lift, se, days_running=21)
     assert traj.confidence in {"medium", "high"}
+
+
+# ---------------------------------------------------------------------------
+# Effect that starts negative and gets more negative
+# ---------------------------------------------------------------------------
+
+
+def _negative_declining_lift(
+    n: int = 21,
+    start: float = -0.05,
+    step: float = -0.006,
+    se: float = 0.002,
+    seed: int = 99,
+) -> tuple[pd.Series, pd.Series]:
+    """Starts negative and becomes increasingly negative (not NOVELTY)."""
+    rng = np.random.default_rng(seed)
+    lift = pd.Series([start + step * i + rng.normal(0, se * 0.1) for i in range(n)])
+    se_series = pd.Series([se] * n)
+    return lift, se_series
+
+
+def test_negative_declining_lift_does_not_raise() -> None:
+    """A negative, increasingly negative lift must not crash the classifier."""
+    lift, se = _negative_declining_lift()
+    traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
+    assert isinstance(traj, EffectTrajectory)
+
+
+def test_negative_declining_lift_is_not_novelty() -> None:
+    """NOVELTY requires initial_lift > 0; a negative-starting declining effect is not NOVELTY."""
+    lift, se = _negative_declining_lift()
+    traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
+    assert traj.pattern != "NOVELTY", (
+        f"Negative-starting declining lift must not be classified as NOVELTY, "
+        f"got {traj.pattern}"
+    )
+
+
+def test_negative_declining_lift_slope_is_negative() -> None:
+    """Slope must be negative for a monotonically declining effect."""
+    lift, se = _negative_declining_lift()
+    traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
+    assert traj.slope < 0, f"Expected negative slope, got {traj.slope:.6f}"
+
+
+# ---------------------------------------------------------------------------
+# Very noisy data where pattern is unclear → STABLE
+# ---------------------------------------------------------------------------
+
+
+def _no_trend_lift(n: int = 21) -> tuple[pd.Series, pd.Series]:
+    """Deterministic alternating lift with no net slope — guaranteed STABLE.
+
+    The alternating sequence is orthogonal to the linear day-index in OLS,
+    so slope is exactly 0, CI = (0 ± small), which overlaps zero → STABLE.
+    """
+    lift = pd.Series([0.05 + 0.02 * (1 if i % 2 == 0 else -1) for i in range(n)])
+    se_series = pd.Series([0.005] * n)
+    return lift, se_series
+
+
+def test_no_trend_noisy_data_does_not_raise() -> None:
+    """Noisy data with no underlying trend must not raise an exception."""
+    lift, se = _no_trend_lift()
+    traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
+    assert isinstance(traj, EffectTrajectory)
+
+
+def test_no_trend_noisy_data_is_stable() -> None:
+    """Lift oscillating around a constant (no net slope) should be classified as STABLE."""
+    lift, se = _no_trend_lift()
+    traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
+    assert traj.pattern == "STABLE", (
+        f"Expected STABLE for no-trend alternating data, got {traj.pattern}"
+    )
+
+
+def test_no_trend_slope_is_near_zero() -> None:
+    """Alternating lift produces an OLS slope of exactly 0."""
+    lift, se = _no_trend_lift()
+    traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
+    assert abs(traj.slope) < 1e-10, (
+        f"Expected slope ≈ 0 for alternating lift, got {traj.slope:.2e}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# days_to_stable is never zero for NOVELTY pattern
+# ---------------------------------------------------------------------------
+
+
+def test_novelty_days_to_stable_never_zero() -> None:
+    """For NOVELTY, days_to_stable must be None or ≥ 1 — never exactly 0."""
+    lift, se = _decreasing_lift()
+    traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
+    assert traj.pattern == "NOVELTY", f"Expected NOVELTY, got {traj.pattern}"
+    assert traj.days_to_stable != 0, (
+        f"days_to_stable must not be exactly 0 for NOVELTY; got {traj.days_to_stable}"
+    )
+
+
+def test_novelty_days_to_stable_is_positive_integer_or_none() -> None:
+    """For NOVELTY, days_to_stable must be a positive int (≥ 1) or None."""
+    lift, se = _decreasing_lift()
+    traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
+    assert traj.pattern == "NOVELTY"
+    if traj.days_to_stable is not None:
+        assert isinstance(traj.days_to_stable, int)
+        assert traj.days_to_stable >= 1, (
+            f"days_to_stable must be ≥ 1, got {traj.days_to_stable}"
+        )

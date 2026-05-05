@@ -420,3 +420,84 @@ def test_volume_spike_with_explicit_baseline():
         baseline_period=baseline,
     )
     assert isinstance(check, ValidationCheck)
+
+
+# ---------------------------------------------------------------------------
+# Multiple anomaly types simultaneously
+# ---------------------------------------------------------------------------
+
+
+def _srm_and_spike_daily(
+    n_days: int = 28, seed: int = 42, attack_day: int = 15
+) -> pd.DataFrame:
+    """60/40 SRM split combined with a 10× volume spike on one day."""
+    rng = np.random.default_rng(seed)
+    n_ctrl = rng.integers(580, 620, n_days).astype(float)   # ~60%
+    n_trt = rng.integers(380, 420, n_days).astype(float)    # ~40%
+    n_ctrl[attack_day] *= 10
+    n_trt[attack_day] *= 10
+    return pd.DataFrame({
+        "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
+        "control_metric": rng.normal(0.30, 0.01, n_days),
+        "treatment_metric": rng.normal(0.30, 0.01, n_days),
+        "n_control": n_ctrl,
+        "n_treatment": n_trt,
+    })
+
+
+def test_multiple_anomalies_result_is_invalid():
+    """SRM + volume spike simultaneously → overall_validity INVALID."""
+    result = validate_experiment(_srm_and_spike_daily())
+    assert result.overall_validity == "INVALID"
+
+
+def test_multiple_anomalies_srm_check_fails():
+    """srm_check must fail when a 60/40 SRM is present."""
+    result = validate_experiment(_srm_and_spike_daily())
+    srm = next(c for c in result.checks if c.name == "srm_check")
+    assert not srm.passed
+
+
+def test_multiple_anomalies_volume_spike_fails():
+    """volume_spike check must fail when a 10× spike day is present."""
+    result = validate_experiment(_srm_and_spike_daily())
+    spike = next(c for c in result.checks if c.name == "volume_spike")
+    assert not spike.passed
+
+
+def test_multiple_anomalies_can_trust_is_false():
+    """can_trust_results must be False when any critical check fails."""
+    result = validate_experiment(_srm_and_spike_daily())
+    assert result.can_trust_results is False
+
+
+# ---------------------------------------------------------------------------
+# WARNING-only failure keeps can_trust_results=True
+# ---------------------------------------------------------------------------
+
+
+def test_warning_only_keeps_can_trust_true():
+    """A WARNING-level failure with no critical failure must keep can_trust_results=True."""
+    df = _clean_daily()
+    warning_check = ValidationCheck(
+        "cusum_drift", False, 5.0, "warning",
+        "One CUSUM crossing detected.",
+        "Review timeline.",
+    )
+    with patch("app.ml.anomaly.check_cusum_drift", return_value=warning_check):
+        result = validate_experiment(df)
+    assert result.overall_validity == "WARNING"
+    assert result.can_trust_results is True
+
+
+def test_can_trust_false_only_when_invalid():
+    """can_trust_results=False must occur only for INVALID, not WARNING or VALID."""
+    df_valid = _clean_daily()
+    df_srm = _srm_daily()
+
+    result_valid = validate_experiment(df_valid)
+    result_invalid = validate_experiment(df_srm)
+
+    assert result_valid.can_trust_results is True
+    assert result_invalid.can_trust_results is False
+    assert result_invalid.overall_validity == "INVALID"
