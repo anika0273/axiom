@@ -1,11 +1,13 @@
 """Axiom FastAPI application factory.
 
 Wires up middleware, exception handlers, routers, and the rate limiter.
-No database connections are established here — Axiom's stats API is stateless.
+On startup, seeds the three sample experiments into the database if they are
+not already present (idempotent, fails gracefully when DB is unavailable).
 """
 
 from __future__ import annotations
 
+import logging
 import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -25,11 +27,25 @@ from app.exceptions import (
 )
 from app.middleware import RequestIDMiddleware, SecurityHeadersMiddleware, TimingMiddleware
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Record startup timestamp for /health uptime reporting."""
+    """Record startup timestamp and seed sample experiments."""
     app.state.start_time = time.time()
+
+    try:
+        from app.data.sample_experiments import seed_sample_experiments
+        from app.db.session import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as session:
+            await seed_sample_experiments(session)
+        logger.info("Sample experiments seeded successfully")
+    except Exception as exc:
+        # DB may not be available in test/CI environments — never block startup.
+        logger.warning("Sample experiment seeding skipped: %s", exc)
+
     yield
 
 
