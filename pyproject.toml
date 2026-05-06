@@ -3,6 +3,9 @@ pythonpath = ["backend"]
 testpaths = ["backend/tests"]
 addopts = "-v --strict-markers"
 minversion = "7.0"
+markers = [
+    "integration: marks tests that call the real Claude API and require DB access (deselect with '-m not integration')",
+]
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::RuntimeWarning",

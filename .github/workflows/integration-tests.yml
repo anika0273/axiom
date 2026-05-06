@@ -1,0 +1,79 @@
+name: Integration Tests (Claude API)
+
+on:
+  schedule:
+    # Every Sunday at 06:00 UTC
+    - cron: "0 6 * * 0"
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    name: Run intelligence integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: axiom
+          POSTGRES_PASSWORD: changeme
+          POSTGRES_DB: axiom
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U axiom -d axiom"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      DATABASE_URL: postgresql+asyncpg://axiom:changeme@localhost:5432/axiom
+      INTEGRATION_DB_URL: postgresql+asyncpg://axiom:changeme@localhost:5432/axiom
+      ENVIRONMENT: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Alembic migrations
+        run: |
+          PYTHONPATH=backend python -m alembic -c backend/alembic.ini upgrade head
+
+      - name: Run integration tests
+        run: |
+          PYTHONPATH=backend python -m pytest \
+            -m integration \
+            backend/tests/integration/ \
+            -v \
+            --tb=short \
+            --timeout=120 \
+            2>&1 | tee integration_results.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Post results as GitHub summary
+        if: always()
+        run: |
+          echo "## Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat integration_results.txt | tail -40 >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload test log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-log
+          path: integration_results.txt
+          retention-days: 7
