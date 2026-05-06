@@ -26,7 +26,10 @@ from typing import Any, Literal
 import anthropic
 
 from app.core.config import settings
+from app.intelligence.guardrails import OutputValidator
 from app.intelligence.interpreter import FullAnalysisResult, MLAnalysisSummary
+
+_output_validator = OutputValidator()
 
 logger = logging.getLogger(__name__)
 
@@ -775,6 +778,27 @@ async def generate_report(
 
     # Run grounding validator — fixes recommendation and logs issues
     tool_output = _validate_grounding(tool_output, stats_result, ml_result, daily_revenue)
+
+    # Run OutputValidator for additional consistency checks and auto-fixes
+    stats_dict = {
+        "is_significant": stats_result.is_significant,
+        "can_trust_results": ml_result.can_trust_results,
+    }
+    val_report = _output_validator.validate_report(tool_output, stats_dict)
+    if val_report.auto_fixed:
+        logger.info(
+            "reporter OutputValidator auto-fixed %d issue(s) for experiment=%r: %s",
+            len(val_report.auto_fixed),
+            experiment_name,
+            val_report.auto_fixed,
+        )
+    if val_report.issues:
+        logger.warning(
+            "reporter OutputValidator found %d issue(s) for experiment=%r: %s",
+            len(val_report.issues),
+            experiment_name,
+            [i.message for i in val_report.issues],
+        )
 
     await _log_to_db(
         db,

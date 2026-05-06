@@ -22,6 +22,12 @@ import anthropic
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
+from app.intelligence.fallbacks import fallback_plan as _fallback_plan
+from app.intelligence.guardrails import (
+    ClaudeCallWrapper,
+    InputGuardrail,
+    OutputValidator,
+)
 from app.models.experiment import AIInteraction, InteractionType
 from app.stats.power import SampleSizeResult, calculate_sample_size, runtime_estimate
 
@@ -35,17 +41,11 @@ PROMPT_VERSION = "planner_v1"
 MAX_INPUT_CHARS = 2000
 TIMEOUT_SECONDS = 25.0
 CLAUDE_MODEL = "claude-sonnet-4-6"
+_output_validator = OutputValidator()
 
 _COST_PER_INPUT_TOKEN = 3.0 / 1_000_000
 _COST_PER_OUTPUT_TOKEN = 15.0 / 1_000_000
 _SAMPLE_SIZE_DISCREPANCY_THRESHOLD = 0.15
-
-_INJECTION_PATTERNS = (
-    "ignore previous",
-    "system prompt",
-    "jailbreak",
-    "forget instructions",
-)
 
 _SYSTEM_PROMPT: str = (
     Path(__file__).parent / "prompts" / "planner_v1.txt"
@@ -249,30 +249,18 @@ _TOOL_SCHEMA: dict[str, Any] = {
 
 
 # ---------------------------------------------------------------------------
-# Input sanitization
+# Input sanitization (now delegated to InputGuardrail)
 # ---------------------------------------------------------------------------
 
 
 def _sanitize_input(description: str) -> tuple[str, str | None]:
-    """Strip whitespace, check length and injection patterns.
+    """Delegate to InputGuardrail.sanitize for uniform guardrail logic.
 
     Returns:
         (cleaned_text, error_message_or_None)
     """
-    cleaned = description.strip()
-
-    if len(cleaned) > MAX_INPUT_CHARS:
-        return cleaned, f"Input exceeds {MAX_INPUT_CHARS} character limit ({len(cleaned)} chars)."
-
-    lower = cleaned.lower()
-    for pattern in _INJECTION_PATTERNS:
-        if pattern in lower:
-            return cleaned, (
-                f"Input contains a disallowed pattern: '{pattern}'. "
-                "Please describe your experiment without instructions to the AI system."
-            )
-
-    return cleaned, None
+    result = InputGuardrail.sanitize(description, max_chars=MAX_INPUT_CHARS)
+    return result.text, result.rejection_reason
 
 
 # ---------------------------------------------------------------------------
@@ -429,9 +417,10 @@ async def plan_experiment(
 
     client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
     t0 = time.monotonic()
+    wrapper = ClaudeCallWrapper()
 
-    try:
-        response = await client.messages.create(
+    async def _call_claude() -> Any:
+        return await client.messages.create(
             model=CLAUDE_MODEL,
             max_tokens=1024,
             system=_SYSTEM_PROMPT,
@@ -440,10 +429,26 @@ async def plan_experiment(
             messages=[{"role": "user", "content": user_message}],
             timeout=TIMEOUT_SECONDS,
         )
-    except anthropic.APITimeoutError as exc:
-        raise TimeoutError("Claude API timed out after 25 seconds.") from exc
-    except anthropic.APIError as exc:
-        raise RuntimeError(f"Claude API error: {exc}") from exc
+
+    response, used_fallback = await wrapper.call_with_retry(
+        _call_claude,
+        max_retries=2,
+        retry_delay=2.0,
+        timeout=TIMEOUT_SECONDS,
+    )
+
+    if used_fallback or response is None:
+        # Claude is unavailable — return a safe fallback asking for clarification
+        fb = _fallback_plan(cleaned)
+        return ExperimentPlanResult(
+            plan=None,
+            needs_clarification=True,
+            clarifying_questions=fb["clarifying_questions"],
+            confidence="low",
+            confidence_reasoning=fb["confidence_reasoning"],
+            stats_engine_verification=None,
+            prompt_version=PROMPT_VERSION,
+        )
 
     duration_ms = int((time.monotonic() - t0) * 1000)
     input_tokens: int = response.usage.input_tokens
@@ -454,7 +459,16 @@ async def plan_experiment(
         None,
     )
     if tool_block is None:
-        raise RuntimeError("Claude did not return a tool_use block.")
+        fb = _fallback_plan(cleaned)
+        return ExperimentPlanResult(
+            plan=None,
+            needs_clarification=True,
+            clarifying_questions=fb["clarifying_questions"],
+            confidence="low",
+            confidence_reasoning=fb["confidence_reasoning"],
+            stats_engine_verification=None,
+            prompt_version=PROMPT_VERSION,
+        )
 
     tool_input: dict[str, Any] = tool_block.input
     needs_clarification = bool(tool_input.get("needs_clarification", False))
@@ -505,6 +519,30 @@ async def plan_experiment(
     sample_size, runtime_days, stats_result, note = _run_stats_verification(
         tool_input, daily_traffic=daily_traffic
     )
+
+    # Output validation — log issues, require fallback only on blocking errors
+    stats_dict: dict[str, Any] = {}
+    if stats_result is not None:
+        stats_dict["sample_size_per_group"] = stats_result.control_size
+    validation_report = _output_validator.validate_plan(tool_input, stats_dict)
+    if validation_report.issues:
+        logger.warning(
+            "planner validate_plan found %d issue(s) for experiment=%r: %s",
+            len(validation_report.issues),
+            tool_input.get("experiment_name", ""),
+            [i.message for i in validation_report.issues],
+        )
+    if validation_report.requires_fallback:
+        fb = _fallback_plan(cleaned)
+        return ExperimentPlanResult(
+            plan=None,
+            needs_clarification=True,
+            clarifying_questions=fb["clarifying_questions"],
+            confidence="low",
+            confidence_reasoning=f"Plan validation failed: {fb['confidence_reasoning']}",
+            stats_engine_verification=None,
+            prompt_version=PROMPT_VERSION,
+        )
 
     plan = ExperimentPlan(
         experiment_name=tool_input.get("experiment_name", ""),

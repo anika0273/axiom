@@ -29,7 +29,10 @@ from typing import Any
 import anthropic
 
 from app.core.config import settings
+from app.intelligence.guardrails import InputGuardrail, OutputValidator
 from app.intelligence.templates.fallback_interpretation import build_fallback_interpretation
+
+_output_validator = OutputValidator()
 
 logger = logging.getLogger(__name__)
 
@@ -337,7 +340,8 @@ async def interpret_results(
     The user prompt is constructed from the actual statistical values — Claude is
     instructed to use only those values and never fabricate figures.
 
-    After the stream completes, runs a grounding validator and logs usage at INFO.
+    After the stream completes, runs a grounding validator and OutputValidator.
+    If the stream fails at any point, yields the template-based fallback instead.
 
     Args:
         stats_result: Statistical analysis output with significance, lift, p-value, etc.
@@ -346,52 +350,86 @@ async def interpret_results(
         daily_traffic: Optional daily traffic estimate for context (not used statistically).
 
     Yields:
-        Text chunks from the Claude streaming response.
-
-    Raises:
-        anthropic.APITimeoutError: If the stream does not start within TIMEOUT_SECONDS.
-        anthropic.APIError: On any other Anthropic API error.
+        Text chunks from the Claude streaming response, or fallback text on failure.
     """
+    # Sanitize experiment_name before including it in the prompt
+    sanitized = InputGuardrail.sanitize(experiment_name, max_chars=200)
+    safe_name = sanitized.text if not sanitized.rejection_reason else "Unnamed Experiment"
+    if sanitized.rejection_reason:
+        logger.warning(
+            "interpret_results: experiment_name rejected by guardrail: %s",
+            sanitized.rejection_reason,
+        )
+
     client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-    user_prompt = _build_user_prompt(stats_result, ml_result, experiment_name, daily_traffic)
+    user_prompt = _build_user_prompt(stats_result, ml_result, safe_name, daily_traffic)
 
     assembled: list[str] = []
     t0 = time.monotonic()
 
-    async with client.messages.stream(
-        model=CLAUDE_MODEL,
-        max_tokens=MAX_OUTPUT_TOKENS,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_prompt}],
-        timeout=TIMEOUT_SECONDS,
-    ) as stream:
-        async for text in stream.text_stream:
-            assembled.append(text)
-            yield text
+    try:
+        async with client.messages.stream(
+            model=CLAUDE_MODEL,
+            max_tokens=MAX_OUTPUT_TOKENS,
+            system=_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
+            timeout=TIMEOUT_SECONDS,
+        ) as stream:
+            async for text in stream.text_stream:
+                assembled.append(text)
+                yield text
 
-        try:
-            final = await stream.get_final_message()
-            duration_s = time.monotonic() - t0
-            cost = (
-                final.usage.input_tokens * _COST_PER_INPUT_TOKEN
-                + final.usage.output_tokens * _COST_PER_OUTPUT_TOKEN
-            )
-            logger.info(
-                "interpreter stream complete experiment=%r tokens_in=%d tokens_out=%d "
-                "duration_s=%.2f cost_usd=%.5f prompt_version=%s",
-                experiment_name,
-                final.usage.input_tokens,
-                final.usage.output_tokens,
-                duration_s,
-                cost,
-                PROMPT_VERSION,
-            )
-        except Exception as exc:
-            logger.warning("failed to get final message from stream: %s", exc)
+            try:
+                final = await stream.get_final_message()
+                duration_s = time.monotonic() - t0
+                cost = (
+                    final.usage.input_tokens * _COST_PER_INPUT_TOKEN
+                    + final.usage.output_tokens * _COST_PER_OUTPUT_TOKEN
+                )
+                logger.info(
+                    "interpreter stream complete experiment=%r tokens_in=%d tokens_out=%d "
+                    "duration_s=%.2f cost_usd=%.5f prompt_version=%s",
+                    safe_name,
+                    final.usage.input_tokens,
+                    final.usage.output_tokens,
+                    duration_s,
+                    cost,
+                    PROMPT_VERSION,
+                )
+            except Exception as exc:
+                logger.warning("failed to get final message from stream: %s", exc)
 
-    full_text = "".join(assembled)
-    if full_text:
-        _validate_grounding(full_text, stats_result)
+        # Post-stream grounding and output validation
+        full_text = "".join(assembled)
+        if full_text:
+            _validate_grounding(full_text, stats_result)
+            stats_dict = {
+                "is_significant": stats_result.is_significant,
+                "lift_pct": stats_result.lift_pct,
+            }
+            report = _output_validator.validate_interpretation(full_text, stats_dict)
+            if report.issues:
+                logger.warning(
+                    "interpreter OutputValidator found %d issue(s) for experiment=%r: %s",
+                    len(report.issues),
+                    safe_name,
+                    [i.message for i in report.issues],
+                )
+
+    except Exception as exc:
+        logger.warning(
+            "interpret_results: stream failed for experiment=%r — yielding fallback: %s",
+            safe_name,
+            exc,
+        )
+        # If we already yielded some text the stream is broken mid-way;
+        # emit a clear separator then the full fallback.
+        if assembled:
+            yield "\n\n[AI interpretation incomplete — switching to template]\n\n"
+        else:
+            yield "[AI interpretation unavailable — template-based summary below]\n\n"
+        fallback_text = build_fallback_interpretation(stats_result, ml_result)
+        yield fallback_text
 
 
 # ---------------------------------------------------------------------------
