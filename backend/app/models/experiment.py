@@ -145,6 +145,7 @@ class ExperimentResult(Base):
         server_default=func.now(),
         nullable=False,
     )
+    report_markdown: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
 
     experiment: Mapped[Experiment] = relationship("Experiment", back_populates="results")
 

@@ -1,18 +1,20 @@
 """Intelligence API router — /api/v1/intelligence/*.
 
 Exposes Claude-powered experiment planning and result interpretation endpoints.
-Rate limits: 10/minute for planning, 5/minute for streaming interpretation
-(streaming calls are more expensive due to longer generation time).
+Rate limits: 10/minute for planning, 5/minute for streaming interpretation,
+3/minute for report generation (most expensive endpoint).
 """
 
 import logging
 import time
 from collections.abc import AsyncGenerator
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_request_id, limiter
@@ -255,3 +257,131 @@ async def stream_interpretation(
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Report endpoint
+# ---------------------------------------------------------------------------
+
+
+class ReportRequest(BaseModel):
+    format: Literal["markdown", "html"] = "markdown"
+    daily_revenue: float | None = None
+
+
+@router.post(
+    "/experiments/{experiment_id}/report",
+    summary="Generate an executive stakeholder report for an experiment",
+    description=(
+        "Loads the experiment and its most recent analysis result from the database, "
+        "generates an 8-section stakeholder report using Claude (sections 1–7) and "
+        "programmatic code (section 8), stores the markdown in experiment_results, "
+        "and returns the full StakeholderReport. "
+        "Rate limited to 3 requests/minute per IP — report generation is expensive."
+    ),
+)
+@limiter.limit("3/minute")
+async def generate_experiment_report(
+    request: Request,
+    experiment_id: UUID,
+    body: ReportRequest = None,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Generate and store a stakeholder report for an experiment."""
+    from app.intelligence.reporter import StakeholderReport, generate_report
+    from app.models.experiment import ExperimentResult
+
+    if body is None:
+        body = ReportRequest()
+
+    req_id = get_request_id(request)
+    logger.info(
+        "intelligence/report req=%s experiment_id=%s format=%s",
+        req_id,
+        experiment_id,
+        body.format,
+    )
+
+    experiment = await get_experiment(db, experiment_id)
+    if experiment is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": {"code": "EXPERIMENT_NOT_FOUND", "message": "Experiment not found"}},
+        )
+
+    result = await get_latest_result(db, experiment_id)
+    if result is None or result.full_analysis_json is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": {
+                    "code": "NO_RESULTS",
+                    "message": "No analysis results found for this experiment",
+                }
+            },
+        )
+
+    json_data: dict = result.full_analysis_json
+    stats_result = parse_stats_from_json(json_data)
+    ml_result = parse_ml_from_json(json_data)
+
+    logger.info(
+        "generating report experiment=%r significant=%s verdict=%s",
+        experiment.name,
+        stats_result.is_significant,
+        ml_result.overall_verdict,
+    )
+
+    report: StakeholderReport = await generate_report(
+        experiment_name=experiment.name,
+        stats_result=stats_result,
+        ml_result=ml_result,
+        daily_traffic=experiment.daily_traffic_estimate,
+        daily_revenue=body.daily_revenue,
+        format=body.format,
+        db=db,
+        experiment_id=experiment_id,
+    )
+
+    # Persist report markdown to the result row
+    result.report_markdown = report.markdown_content
+    await db.flush()
+
+    # Serialise the dataclass to a dict for the JSON response
+    response_data = {
+        "data": {
+            "title": report.title,
+            "generated_at": report.generated_at.isoformat(),
+            "prompt_version": report.prompt_version,
+            "recommendation": report.recommendation,
+            "confidence_level": report.confidence_level,
+            "confidence_reasoning": report.confidence_reasoning,
+            "key_metric": report.key_metric,
+            "word_count": report.word_count,
+            "ai_generated_sections": report.ai_generated_sections,
+            "programmatic_sections": report.programmatic_sections,
+            "sections": [
+                {
+                    "section_number": s.section_number,
+                    "title": s.title,
+                    "content": s.content,
+                    "is_ai_generated": s.is_ai_generated,
+                    "data_sources": s.data_sources,
+                }
+                for s in report.sections
+            ],
+            "markdown_content": report.markdown_content,
+            "html_content": report.html_content,
+        },
+        "meta": {},
+    }
+
+    logger.info(
+        "report complete experiment=%r recommendation=%s confidence=%s words=%d",
+        experiment.name,
+        report.recommendation,
+        report.confidence_level,
+        report.word_count,
+    )
+
+    return JSONResponse(content=response_data)
