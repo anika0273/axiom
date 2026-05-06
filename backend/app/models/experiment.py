@@ -204,6 +204,13 @@ class AIInteraction(Base):
     user_prompt: Mapped[str] = mapped_column(sa.Text, nullable=False)
     ai_response: Mapped[str] = mapped_column(sa.Text, nullable=False)
     tokens_used: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
+    # Phase 3 metadata columns (migration 002)
+    prompt_version: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    input_tokens: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
+    estimated_cost_usd: Mapped[float | None] = mapped_column(sa.Float, nullable=True)
+    confidence: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True),
         server_default=func.now(),
