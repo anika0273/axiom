@@ -212,6 +212,8 @@ class AIInteraction(Base):
     estimated_cost_usd: Mapped[float | None] = mapped_column(sa.Float, nullable=True)
     confidence: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
+    # migration 004: "success" | "retry_success" | "fallback_used" | "failed"
+    status: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True),
         server_default=func.now(),

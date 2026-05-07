@@ -2,19 +2,21 @@
 
 Exposes Claude-powered experiment planning and result interpretation endpoints.
 Rate limits: 10/minute for planning, 5/minute for streaming interpretation,
-3/minute for report generation (most expensive endpoint).
+3/minute for report generation (most expensive endpoint),
+30/minute for the usage monitoring endpoint.
 """
 
 import logging
 import time
 from collections.abc import AsyncGenerator
+from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_request_id, limiter
@@ -385,3 +387,121 @@ async def generate_experiment_report(
     )
 
     return JSONResponse(content=response_data)
+
+
+# ---------------------------------------------------------------------------
+# Usage / cost monitoring endpoint
+# ---------------------------------------------------------------------------
+
+
+def _empty_period() -> dict:
+    return {
+        "total_calls": 0,
+        "total_input_tokens": 0,
+        "total_output_tokens": 0,
+        "estimated_cost_usd": 0.0,
+        "fallback_rate": 0.0,
+        "by_function": {},
+    }
+
+
+def _build_period(rows: list) -> dict:
+    """Aggregate a list of per-function DB rows into a period summary dict."""
+    total_calls = 0
+    total_input = 0
+    total_output = 0
+    total_cost = 0.0
+    total_fallback = 0
+    by_function: dict = {}
+
+    for row in rows:
+        fn = row.interaction_type
+        calls = row.calls or 0
+        inp = row.total_input or 0
+        out = row.total_output or 0
+        cost = float(row.total_cost or 0.0)
+        avg_ms = int(row.avg_latency or 0)
+        fallback = row.fallback_calls or 0
+
+        total_calls += calls
+        total_input += inp
+        total_output += out
+        total_cost += cost
+        total_fallback += fallback
+
+        by_function[fn] = {
+            "calls": calls,
+            "cost": round(cost, 6),
+            "avg_latency_ms": avg_ms,
+        }
+
+    fallback_rate = round(total_fallback / total_calls, 4) if total_calls else 0.0
+
+    return {
+        "total_calls": total_calls,
+        "total_input_tokens": total_input,
+        "total_output_tokens": total_output,
+        "estimated_cost_usd": round(total_cost, 6),
+        "fallback_rate": fallback_rate,
+        "by_function": by_function,
+    }
+
+
+@router.get(
+    "/usage",
+    summary="Claude API usage and cost summary",
+    description=(
+        "Returns aggregated token usage, estimated cost, and latency statistics "
+        "for all Claude API calls recorded in ai_interactions. "
+        "Broken down by time period (today / all time) and by function "
+        "(planner / interpreter / reporter). "
+        "Rate limited to 30 requests/minute — this is a monitoring endpoint."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_usage(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Return Claude API usage statistics and estimated cost."""
+    from app.models.experiment import AIInteraction
+
+    today_start = datetime.now(tz=timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    agg_cols = (
+        AIInteraction.interaction_type,
+        func.count().label("calls"),
+        func.sum(AIInteraction.input_tokens).label("total_input"),
+        func.sum(AIInteraction.output_tokens).label("total_output"),
+        func.sum(AIInteraction.estimated_cost_usd).label("total_cost"),
+        func.avg(AIInteraction.duration_ms).label("avg_latency"),
+        func.count()
+        .filter(AIInteraction.status == "fallback_used")
+        .label("fallback_calls"),
+    )
+
+    today_rows = (
+        await db.execute(
+            select(*agg_cols)
+            .where(AIInteraction.created_at >= today_start)
+            .group_by(AIInteraction.interaction_type)
+        )
+    ).all()
+
+    all_rows = (
+        await db.execute(
+            select(*agg_cols).group_by(AIInteraction.interaction_type)
+        )
+    ).all()
+
+    return JSONResponse(
+        content={
+            "data": {
+                "today": _build_period(today_rows) if today_rows else _empty_period(),
+                "all_time": _build_period(all_rows) if all_rows else _empty_period(),
+            },
+            "meta": {},
+        }
+    )
