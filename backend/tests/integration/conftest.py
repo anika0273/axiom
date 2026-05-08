@@ -41,6 +41,14 @@ INTEGRATION_DB_URL: str = os.environ.get(
     "postgresql+asyncpg://axiom:changeme@localhost:5434/axiom",
 )
 
+
+@pytest.fixture
+def require_real_api_key() -> None:
+    """Skip the test when ANTHROPIC_API_KEY is absent or a placeholder."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key.startswith("sk-ant-"):
+        pytest.skip("Real ANTHROPIC_API_KEY required — set it to run live AI tests")
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------

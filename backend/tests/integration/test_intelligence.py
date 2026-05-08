@@ -75,7 +75,7 @@ _CHECKOUT_CONTEXT: dict[str, Any] = {"daily_traffic": 500}
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_planner_checkout_experiment(db_session) -> None:
+async def test_planner_checkout_experiment(require_real_api_key, db_session) -> None:
     """Checkout button description → full plan with verified sample size."""
 
     before_count = await count_ai_interactions(db_session)
@@ -316,7 +316,7 @@ async def test_interpreter_fallback(saas_stats, saas_ml) -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_reporter_all_sections(marketplace_stats, marketplace_ml, db_session) -> None:
+async def test_reporter_all_sections(require_real_api_key, marketplace_stats, marketplace_ml, db_session) -> None:
     """Marketplace dataset (NEEDS_REVIEW, WARNING anomaly) → 8-section report."""
 
     experiment_name = "Marketplace Fee Structure Test"

@@ -1,6 +1,6 @@
 # Axiom — AI-Powered A/B Testing Platform
 
-## Build Status — Phase 2 Complete ✓ (2026-05-05)
+## Build Status — Phase 3 Complete ✓ (2026-05-06)
 
 ### Phase 1 — Stats Engine & API
 | Component | Status | Detail |
@@ -23,20 +23,34 @@
 | ML docs | ✓ Complete | `docs/ml/EXPLAINERS.md`, `docs/ml/DECISIONS.md` |
 | Smoke test | ✓ Passing | `scripts/smoke_test_ml.py` — end-to-end regression check |
 
-### ML Modules (`backend/app/ml/`)
+### Phase 3 — Claude AI Intelligence Layer (complete 2026-05-06)
+| Component | Status | Detail |
+|---|---|---|
+| Intelligence modules | ✓ 6 modules | `backend/app/intelligence/` — planner, interpreter, reporter, guardrails, fallbacks, costs |
+| AI API endpoints | ✓ Wired | `backend/app/api/v1/intelligence.py` — plan, interpret (SSE), report, usage |
+| Intelligence test suite | ✓ 894/894 passing | `backend/tests/intelligence/` + `backend/tests/integration/test_intelligence.py` |
+| Intelligence coverage | 90% overall | All modules ≥ 80%; `costs.py` 100%, `fallbacks.py` 100% |
+| Phase 3 docs | ✓ Complete | `docs/intelligence/EXPLAINERS.md`, `docs/intelligence/DECISIONS.md` |
+| Checkpoint report | ✓ Complete | `docs/intelligence/PHASE3_CHECKPOINT.md` — all 7 checkpoints PASS |
+
+### Intelligence Modules (`backend/app/intelligence/`)
 | Module | What it does |
 |---|---|
-| `hte.py` | XGBoost + interaction terms: estimates per-user treatment effects and ranks treatment modifiers via SHAP |
-| `segments.py` | KMeans segment discovery with silhouette-optimal k, per-segment significance tests, and rollout recommendations |
-| `anomaly.py` | SRM (chi-squared), IsolationForest outlier days, CUSUM drift, and volume-spike validity checks |
-| `novelty.py` | Weighted linear regression classifies daily lift trajectory as STABLE / NOVELTY / LEARNING |
-| `engine.py` | Orchestrator: runs anomaly+novelty sequentially, HTE+segments in parallel via ThreadPoolExecutor, synthesises a verdict |
+| `planner.py` | NL description → structured `ExperimentPlan` via tool_use; stats engine verifies sample size |
+| `interpreter.py` | Streams plain-English result interpretation; grounding validator prevents lift hallucination |
+| `reporter.py` | 8-section stakeholder report via tool_use; Section 8 always programmatic |
+| `guardrails.py` | `InputGuardrail` (injection detection), `OutputValidator` (auto-fix SHIP/nonsig), `RateLimiter`, `ClaudeCallWrapper` |
+| `fallbacks.py` | Template-based responses for all 3 functions when Claude API is unavailable |
+| `costs.py` | Per-model token cost estimation; rates table keyed by model prefix |
 
 **Run command:** `PYTHONPATH=backend uvicorn app.main:app --host 0.0.0.0 --port 8000`
 **Full stack:** `docker compose up -d` (requires `.env` from `.env.example`)
 **Tests (all):** `PYTHONPATH=backend .venv/bin/python -m pytest backend/tests/ --cov=backend/app --cov-report=term-missing -q`
+**Tests (intelligence only):** `PYTHONPATH=backend .venv/bin/python -m pytest backend/tests/intelligence/ -q`
 **Tests (ML only):** `PYTHONPATH=backend .venv/bin/python -m pytest backend/tests/ml/ -q`
 **Tests (stats only):** `PYTHONPATH=backend .venv/bin/python -m pytest backend/tests/stats/ backend/tests/unit/ -q`
+**AI health check:** `PYTHONPATH=backend .venv/bin/python -m pytest backend/tests/intelligence/ -q`
+**Cost monitoring:** `curl http://localhost:8000/api/v1/intelligence/usage`
 **Smoke test:** `PYTHONPATH=backend python scripts/smoke_test_ml.py`
 **Migration:** `docker compose exec backend alembic upgrade head`
 
