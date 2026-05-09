@@ -1,7 +1,7 @@
 import { createBrowserRouter, useRouteError, Link } from 'react-router-dom'
 import Home from './pages/Home'
 import ExperimentList from './pages/ExperimentList'
-import ExperimentNew from './pages/ExperimentNew'
+import NewExperiment from './pages/NewExperiment'
 import ExperimentResults from './pages/ExperimentResults'
 import ExperimentReport from './pages/ExperimentReport'
 import Demo from './pages/Demo'
@@ -44,7 +44,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/experiments/new',
-    element: <ExperimentNew />,
+    element: <NewExperiment />,
     errorElement: <RouteError />,
   },
   {
