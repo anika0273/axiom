@@ -51,6 +51,7 @@ def _result_to_summary(record: ExperimentResult) -> StoredResultSummary:
         recommendation=payload.get("recommendation"),
         key_insights=payload.get("key_insights", []),
         analyzed_at=record.analyzed_at,
+        report_markdown=record.report_markdown,
     )
 
 

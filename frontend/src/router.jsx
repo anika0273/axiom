@@ -3,7 +3,7 @@ import Home from './pages/Home'
 import ExperimentList from './pages/ExperimentList'
 import NewExperiment from './pages/NewExperiment'
 import ExperimentResults from './pages/ExperimentResults'
-import ExperimentReport from './pages/ExperimentReport'
+import StakeholderReport from './pages/StakeholderReport'
 import Demo from './pages/Demo'
 import DemoExperimentResults from './pages/DemoExperimentResults'
 import NotFound from './pages/NotFound'
@@ -55,7 +55,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/experiments/:id/report',
-    element: <ExperimentReport />,
+    element: <StakeholderReport />,
     errorElement: <RouteError />,
   },
   {

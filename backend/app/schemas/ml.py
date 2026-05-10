@@ -314,6 +314,7 @@ class StoredResultSummary(BaseModel):
     recommendation: str | None = None
     key_insights: list[str] = Field(default_factory=list)
     analyzed_at: datetime
+    report_markdown: str | None = None
 
 
 class ExperimentResponse(BaseModel):
