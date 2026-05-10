@@ -65,6 +65,13 @@ export const DEMO_DATA_BY_SLUG = {
   marketplace: MARKETPLACE,
 }
 
+// Maps demo slug → DB experiment UUID so live AI endpoints can be used
+export const DEMO_ID_BY_SLUG = {
+  ecommerce: ECOMMERCE_ID,
+  saas: SAAS_ID,
+  marketplace: MARKETPLACE_ID,
+}
+
 // Human-readable labels for the demo gallery
 export const DEMO_META = {
   ecommerce: {

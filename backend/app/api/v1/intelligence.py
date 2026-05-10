@@ -137,7 +137,10 @@ async def _sse_chunks(
             daily_traffic=daily_traffic,
         ):
             assembled.append(chunk)
-            yield f"data: {chunk}\n\n"
+            # Encode multi-line chunks as proper multi-line SSE so the browser
+            # EventSource receives the full text in a single onmessage event.
+            sse_data = chunk.replace("\n", "\ndata: ")
+            yield f"data: {sse_data}\n\n"
         stream_ok = True
 
     except Exception as exc:
@@ -147,9 +150,13 @@ async def _sse_chunks(
             exc,
             exc_info=True,
         )
-        yield "data: [FALLBACK]\n\n"
         fallback = build_fallback_interpretation(stats_result, ml_result)
-        yield f"data: {fallback}\n\n"
+        sse_data = fallback.replace("\n", "\ndata: ")
+        yield f"data: {sse_data}\n\n"
+
+    # Terminal sentinel lets the frontend close the EventSource cleanly
+    # without triggering the onerror handler.
+    yield "data: [DONE]\n\n"
 
     if stream_ok and assembled:
         full_text = "".join(assembled)

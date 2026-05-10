@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Sparkles, FileText } from 'lucide-react'
+import { ArrowLeft, Sparkles } from 'lucide-react'
 
 import PageShell from '../components/layout/PageShell'
 import Button from '../components/ui/Button'
-import { DEMO_DATA_BY_SLUG } from '../data/sampleExperiments'
+import { DEMO_DATA_BY_SLUG, DEMO_ID_BY_SLUG } from '../data/sampleExperiments'
 
 import VerdictBanner from '../components/results/VerdictBanner'
 import MetricsRow from '../components/results/MetricsRow'
@@ -144,6 +144,7 @@ function NotFoundState({ name }) {
 export default function DemoExperimentResults() {
   const { name } = useParams()
   const sample = DEMO_DATA_BY_SLUG[name]
+  const experimentId = DEMO_ID_BY_SLUG[name] ?? null
 
   const result = useMemo(() => (sample ? buildDemoResult(sample) : null), [sample])
 
@@ -311,7 +312,7 @@ export default function DemoExperimentResults() {
 
           {/* SECTION 8: AI Interpretation */}
           <div id="interpretation">
-            <AIInterpretationPanel experimentId={null} experimentName={expName} />
+            <AIInterpretationPanel experimentId={experimentId} experimentName={expName} />
           </div>
         </>
       )}

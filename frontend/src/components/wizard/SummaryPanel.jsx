@@ -12,13 +12,9 @@ function KeyNumber({ label, value, sub }) {
   )
 }
 
-/**
- * Full-width summary panel rendered after step 3 is complete.
- * Shows key experiment numbers and the "Create Experiment" CTA.
- * For now, creation navigates to /experiments (real POST would go here).
- */
 export default function SummaryPanel({ state, sampleSizeResult }) {
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState(null)
   const navigate = useNavigate()
 
   const ss = sampleSizeResult?.ss
@@ -26,9 +22,41 @@ export default function SummaryPanel({ state, sampleSizeResult }) {
 
   async function handleCreate() {
     setSubmitting(true)
-    // Placeholder — real implementation would POST to /api/v1/experiments
-    await new Promise((r) => setTimeout(r, 600))
-    navigate('/experiments')
+    setSubmitError(null)
+
+    const isProportion = state.primaryMetricType === 'proportion'
+    const baselineRaw = parseFloat(state.baseline) || 0
+    const payload = {
+      name: state.name,
+      description: state.hypothesis || undefined,
+      hypothesis: state.hypothesis || undefined,
+      experiment_type: state.primaryMetricType || 'proportion',
+      // Proportion baselines are stored as % strings ("4" → 0.04); mean/ratio
+      // baselines are absolute values and should be passed through directly.
+      baseline_metric: isProportion ? baselineRaw / 100 : baselineRaw,
+      // Slider stores MDE as percentage points (5 → 0.05 fraction)
+      mde: state.mde / 100,
+      alpha: state.alpha,
+      power: state.power,
+      daily_traffic_estimate: state.dailyTraffic ? parseInt(state.dailyTraffic, 10) : undefined,
+    }
+
+    try {
+      const res = await fetch('/api/v1/experiments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json?.error?.message ?? `HTTP ${res.status}`)
+      }
+      const exp = json?.data ?? json
+      navigate(`/experiments/${exp.id}`)
+    } catch (err) {
+      setSubmitError(err.message ?? 'Could not create experiment. Please try again.')
+      setSubmitting(false)
+    }
   }
 
   const usersPerGroup = ss ? ss.control_size.toLocaleString() : '—'
@@ -88,9 +116,25 @@ export default function SummaryPanel({ state, sampleSizeResult }) {
       <Button size="lg" onClick={handleCreate} loading={submitting} className="w-full">
         Create Experiment
       </Button>
-      <p className="text-xs text-muted text-center mt-3">
-        Results will be stored and accessible from your experiments dashboard
-      </p>
+
+      {submitError && (
+        <p
+          className="text-xs text-center mt-3 px-3 py-2 rounded-md border"
+          style={{
+            color: 'var(--color-accent-red)',
+            backgroundColor: 'rgba(239,68,68,0.08)',
+            borderColor: 'rgba(239,68,68,0.2)',
+          }}
+        >
+          {submitError}
+        </p>
+      )}
+
+      {!submitError && (
+        <p className="text-xs text-muted text-center mt-3">
+          Results will be stored and accessible from your experiments dashboard
+        </p>
+      )}
     </div>
   )
 }
