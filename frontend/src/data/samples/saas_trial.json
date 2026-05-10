@@ -1,0 +1,625 @@
+{
+  "metadata": {
+    "name": "SaaS Free Trial Length Test (14 vs 30 Days)",
+    "description": "Tests extending the free trial from 14 to 30 days to increase trial-to-paid conversion. Larger companies need longer evaluation cycles and benefit significantly; small startups see minimal lift.",
+    "what_is_interesting": "Clean experiment (no SRM, stable novelty) that showcases strong company-size HTE: enterprises (>50 seats) convert 8pp more with the longer trial, while small teams show negligible change.",
+    "expected_verdict": "CLEAN",
+    "expected_anomalies": [],
+    "expected_hte_modifier": "company_size",
+    "n_users": 5000,
+    "n_days": 30,
+    "true_ate": 0.0344,
+    "test_type": "proportion",
+    "baseline_metric": 0.12,
+    "mde": 0.02,
+    "n_control": 2500,
+    "n_treatment": 2500
+  },
+  "daily_data": [
+    {
+      "date": "2026-02-02",
+      "control_metric": 0.119364,
+      "treatment_metric": 0.140834,
+      "n_control": 103,
+      "n_treatment": 112,
+      "treatment_effect": 0.02147,
+      "treatment_se": 0.045836
+    },
+    {
+      "date": "2026-02-03",
+      "control_metric": 0.113333,
+      "treatment_metric": 0.142501,
+      "n_control": 96,
+      "n_treatment": 94,
+      "treatment_effect": 0.029168,
+      "treatment_se": 0.048443
+    },
+    {
+      "date": "2026-02-04",
+      "control_metric": 0.116579,
+      "treatment_metric": 0.144787,
+      "n_control": 88,
+      "n_treatment": 87,
+      "treatment_effect": 0.028208,
+      "treatment_se": 0.050927
+    },
+    {
+      "date": "2026-02-05",
+      "control_metric": 0.114482,
+      "treatment_metric": 0.154702,
+      "n_control": 78,
+      "n_treatment": 81,
+      "treatment_effect": 0.04022,
+      "treatment_se": 0.053983
+    },
+    {
+      "date": "2026-02-06",
+      "control_metric": 0.12323,
+      "treatment_metric": 0.157784,
+      "n_control": 78,
+      "n_treatment": 86,
+      "treatment_effect": 0.034554,
+      "treatment_se": 0.054133
+    },
+    {
+      "date": "2026-02-07",
+      "control_metric": 0.117013,
+      "treatment_metric": 0.145843,
+      "n_control": 36,
+      "n_treatment": 36,
+      "treatment_effect": 0.028831,
+      "treatment_se": 0.079564
+    },
+    {
+      "date": "2026-02-08",
+      "control_metric": 0.117666,
+      "treatment_metric": 0.133948,
+      "n_control": 22,
+      "n_treatment": 23,
+      "treatment_effect": 0.016281,
+      "treatment_se": 0.098807
+    },
+    {
+      "date": "2026-02-09",
+      "control_metric": 0.117324,
+      "treatment_metric": 0.151363,
+      "n_control": 107,
+      "n_treatment": 103,
+      "treatment_effect": 0.03404,
+      "treatment_se": 0.047063
+    },
+    {
+      "date": "2026-02-10",
+      "control_metric": 0.132149,
+      "treatment_metric": 0.144762,
+      "n_control": 100,
+      "n_treatment": 103,
+      "treatment_effect": 0.012613,
+      "treatment_se": 0.048465
+    },
+    {
+      "date": "2026-02-11",
+      "control_metric": 0.133439,
+      "treatment_metric": 0.151042,
+      "n_control": 96,
+      "n_treatment": 96,
+      "treatment_effect": 0.017603,
+      "treatment_se": 0.050401
+    },
+    {
+      "date": "2026-02-12",
+      "control_metric": 0.119133,
+      "treatment_metric": 0.142861,
+      "n_control": 85,
+      "n_treatment": 85,
+      "treatment_effect": 0.023728,
+      "treatment_se": 0.051722
+    },
+    {
+      "date": "2026-02-13",
+      "control_metric": 0.121744,
+      "treatment_metric": 0.145983,
+      "n_control": 81,
+      "n_treatment": 83,
+      "treatment_effect": 0.024239,
+      "treatment_se": 0.053124
+    },
+    {
+      "date": "2026-02-14",
+      "control_metric": 0.11997,
+      "treatment_metric": 0.15494,
+      "n_control": 34,
+      "n_treatment": 34,
+      "treatment_effect": 0.03497,
+      "treatment_se": 0.083404
+    },
+    {
+      "date": "2026-02-15",
+      "control_metric": 0.122664,
+      "treatment_metric": 0.14795,
+      "n_control": 27,
+      "n_treatment": 28,
+      "treatment_effect": 0.025287,
+      "treatment_se": 0.09213
+    },
+    {
+      "date": "2026-02-16",
+      "control_metric": 0.105237,
+      "treatment_metric": 0.134944,
+      "n_control": 104,
+      "n_treatment": 105,
+      "treatment_effect": 0.029707,
+      "treatment_se": 0.044913
+    },
+    {
+      "date": "2026-02-17",
+      "control_metric": 0.120386,
+      "treatment_metric": 0.150047,
+      "n_control": 94,
+      "n_treatment": 100,
+      "treatment_effect": 0.029662,
+      "treatment_se": 0.049009
+    },
+    {
+      "date": "2026-02-18",
+      "control_metric": 0.106496,
+      "treatment_metric": 0.157702,
+      "n_control": 93,
+      "n_treatment": 93,
+      "treatment_effect": 0.051206,
+      "treatment_se": 0.049512
+    },
+    {
+      "date": "2026-02-19",
+      "control_metric": 0.11871,
+      "treatment_metric": 0.134732,
+      "n_control": 85,
+      "n_treatment": 86,
+      "treatment_effect": 0.016022,
+      "treatment_se": 0.050856
+    },
+    {
+      "date": "2026-02-20",
+      "control_metric": 0.125889,
+      "treatment_metric": 0.13986,
+      "n_control": 84,
+      "n_treatment": 78,
+      "treatment_effect": 0.013971,
+      "treatment_se": 0.053407
+    },
+    {
+      "date": "2026-02-21",
+      "control_metric": 0.11248,
+      "treatment_metric": 0.148186,
+      "n_control": 37,
+      "n_treatment": 31,
+      "treatment_effect": 0.035706,
+      "treatment_se": 0.082279
+    },
+    {
+      "date": "2026-02-22",
+      "control_metric": 0.128275,
+      "treatment_metric": 0.138672,
+      "n_control": 29,
+      "n_treatment": 21,
+      "treatment_effect": 0.010398,
+      "treatment_se": 0.097691
+    },
+    {
+      "date": "2026-02-23",
+      "control_metric": 0.12362,
+      "treatment_metric": 0.147519,
+      "n_control": 107,
+      "n_treatment": 103,
+      "treatment_effect": 0.023899,
+      "treatment_se": 0.047259
+    },
+    {
+      "date": "2026-02-24",
+      "control_metric": 0.117547,
+      "treatment_metric": 0.150198,
+      "n_control": 100,
+      "n_treatment": 99,
+      "treatment_effect": 0.032651,
+      "treatment_se": 0.048235
+    },
+    {
+      "date": "2026-02-25",
+      "control_metric": 0.110642,
+      "treatment_metric": 0.138399,
+      "n_control": 95,
+      "n_treatment": 90,
+      "treatment_effect": 0.027757,
+      "treatment_se": 0.048587
+    },
+    {
+      "date": "2026-02-26",
+      "control_metric": 0.118032,
+      "treatment_metric": 0.149321,
+      "n_control": 80,
+      "n_treatment": 83,
+      "treatment_effect": 0.031289,
+      "treatment_se": 0.053213
+    },
+    {
+      "date": "2026-02-27",
+      "control_metric": 0.114495,
+      "treatment_metric": 0.162386,
+      "n_control": 78,
+      "n_treatment": 88,
+      "treatment_effect": 0.047891,
+      "treatment_se": 0.053343
+    },
+    {
+      "date": "2026-02-28",
+      "control_metric": 0.126475,
+      "treatment_metric": 0.157996,
+      "n_control": 33,
+      "n_treatment": 28,
+      "treatment_effect": 0.031521,
+      "treatment_se": 0.089995
+    },
+    {
+      "date": "2026-03-01",
+      "control_metric": 0.1185,
+      "treatment_metric": 0.140361,
+      "n_control": 22,
+      "n_treatment": 26,
+      "treatment_effect": 0.021861,
+      "treatment_se": 0.096896
+    },
+    {
+      "date": "2026-03-02",
+      "control_metric": 0.114874,
+      "treatment_metric": 0.143482,
+      "n_control": 104,
+      "n_treatment": 110,
+      "treatment_effect": 0.028607,
+      "treatment_se": 0.04577
+    },
+    {
+      "date": "2026-03-03",
+      "control_metric": 0.123459,
+      "treatment_metric": 0.149874,
+      "n_control": 97,
+      "n_treatment": 102,
+      "treatment_effect": 0.026415,
+      "treatment_se": 0.048629
+    }
+  ],
+  "precomputed_result": {
+    "ml_result": {
+      "overall_verdict": "CLEAN",
+      "key_insights": [
+        "Data quality checks passed \u2014 all four validity checks are clean.",
+        "Effect is stable. Safe to make shipping decision.",
+        "Strongest treatment modifier: company_size (ATE=+0.0344, stability=0.92). Target top 20% of users by predicted lift (ITE \u2265 0.076); expected lift for this segment: +0.144 driven by company_size_x_treat. Overall ATE: +0.034."
+      ],
+      "can_trust_results": true,
+      "recommendation": "Results are reliable. Proceed with shipping decision.",
+      "capability_report": [
+        {
+          "module": "anomaly",
+          "status": "completed",
+          "skip_reason": null,
+          "duration_seconds": 0.1902
+        },
+        {
+          "module": "novelty",
+          "status": "completed",
+          "skip_reason": null,
+          "duration_seconds": 0.0007
+        },
+        {
+          "module": "hte",
+          "status": "completed",
+          "skip_reason": null,
+          "duration_seconds": 2.1066
+        },
+        {
+          "module": "segments",
+          "status": "completed",
+          "skip_reason": null,
+          "duration_seconds": 5.4603
+        }
+      ],
+      "hte": {
+        "ate": 0.0344,
+        "top_interactions": [
+          "company_size_x_treat",
+          "usage_score_x_treat",
+          "industry_x_treat",
+          "signup_source_x_treat"
+        ],
+        "stability_score": 0.9236563740098823,
+        "business_recommendation": "Target top 20% of users by predicted lift (ITE \u2265 0.076); expected lift for this segment: +0.144 driven by company_size_x_treat. Overall ATE: +0.034.",
+        "ite_uncertainty_mean": 0.0
+      },
+      "segments": {
+        "optimal_k": 5,
+        "silhouette_score": 0.2770639125624614,
+        "responsive_segments": [
+          1,
+          4
+        ],
+        "overall_recommendation": "Roll out to segments 1, 4. Investigate segments 0, 2, 3 (inconclusive). Overall ATE: +0.034.",
+        "low_confidence": false,
+        "segments": [
+          {
+            "id": 0,
+            "size_pct": 0.1896,
+            "lift": 0.019198,
+            "lift_uncertainty": 0.0,
+            "description": "Segment 0: mid-sized group (19% of users) with company_size below average (29.23 vs 40.49). Lift: +0.019 (not significant).",
+            "significant": false,
+            "top_features": {
+              "company_size": [
+                29.23481012658228,
+                40.48628
+              ],
+              "usage_score": [
+                25.436149789029535,
+                28.358729999999998
+              ],
+              "signup_source": [
+                2.0,
+                0.7052
+              ]
+            }
+          },
+          {
+            "id": 1,
+            "size_pct": 0.245,
+            "lift": 0.053895,
+            "lift_uncertainty": 6.938893903907228e-18,
+            "description": "Segment 1: mid-sized group (24% of users) with company_size below average (27.68 vs 40.49). Lift: +0.054 (significant).",
+            "significant": true,
+            "top_features": {
+              "company_size": [
+                27.677061224489798,
+                40.48628
+              ],
+              "usage_score": [
+                22.484008163265305,
+                28.358729999999998
+              ],
+              "industry": [
+                2.7877551020408164,
+                1.3282
+              ]
+            }
+          },
+          {
+            "id": 2,
+            "size_pct": 0.0486,
+            "lift": 0.050738,
+            "lift_uncertainty": 6.938893903907228e-18,
+            "description": "Segment 2: small group (5% of users) with company_size above average (213.24 vs 40.49). Lift: +0.051 (not significant).",
+            "significant": false,
+            "top_features": {
+              "company_size": [
+                213.23539094650204,
+                40.48628
+              ],
+              "usage_score": [
+                41.8854732510288,
+                28.358729999999998
+              ],
+              "industry": [
+                1.3950617283950617,
+                1.3282
+              ]
+            }
+          },
+          {
+            "id": 3,
+            "size_pct": 0.1996,
+            "lift": 0.022813,
+            "lift_uncertainty": 0.0004891999999999994,
+            "description": "Segment 3: mid-sized group (20% of users) with usage_score above average (48.96 vs 28.36). Lift: +0.023 (not significant).",
+            "significant": false,
+            "top_features": {
+              "usage_score": [
+                48.96427855711423,
+                28.358729999999998
+              ],
+              "company_size": [
+                46.15360721442886,
+                40.48628
+              ],
+              "industry": [
+                0.9709418837675351,
+                1.3282
+              ]
+            }
+          },
+          {
+            "id": 4,
+            "size_pct": 0.3172,
+            "lift": 0.033612,
+            "lift_uncertainty": 0.0002920000000000006,
+            "description": "Segment 4: mid-sized group (32% of users) with company_size below average (27.07 vs 40.49). Lift: +0.034 (significant).",
+            "significant": true,
+            "top_features": {
+              "company_size": [
+                27.071185372005043,
+                40.48628
+              ],
+              "usage_score": [
+                19.604508196721312,
+                28.358729999999998
+              ],
+              "industry": [
+                0.39344262295081966,
+                1.3282
+              ]
+            }
+          }
+        ]
+      },
+      "anomaly": {
+        "overall_validity": "VALID",
+        "can_trust_results": true,
+        "recommendation": "Results are valid. Proceed with analysis.",
+        "checks": [
+          {
+            "name": "srm_check",
+            "passed": true,
+            "score": 0.82608120916116,
+            "severity": "critical",
+            "description": "Assignment ratio 50.23% treatment is consistent with expected 50.00% (p=0.8261).",
+            "action": "No action required."
+          },
+          {
+            "name": "outlier_days",
+            "passed": true,
+            "score": 0.0,
+            "severity": "info",
+            "description": "No anomalous days detected across 30 days.",
+            "action": "No action required."
+          },
+          {
+            "name": "cusum_drift",
+            "passed": true,
+            "score": 4.571001561841101,
+            "severity": "info",
+            "description": "No metric drift detected (max cumsum=4.57, threshold=10.0).",
+            "action": "No action required."
+          },
+          {
+            "name": "volume_spike",
+            "passed": true,
+            "score": 0.0,
+            "severity": "info",
+            "description": "No volume spikes detected. Baseline mean=162, threshold=309.",
+            "action": "No action required."
+          }
+        ]
+      },
+      "novelty": {
+        "pattern": "STABLE",
+        "slope": 0.00011524204504723717,
+        "slope_ci": [
+          -0.0002856286109057571,
+          0.0005161127010002314
+        ],
+        "initial_lift": 0.02646139621748901,
+        "projected_stable_lift": 0.028097469892708567,
+        "days_to_stable": 0,
+        "confidence": "high",
+        "recommendation": "Effect is stable. Safe to make shipping decision."
+      }
+    },
+    "stats_result": {
+      "required_sample_size": {
+        "control_size": 1469,
+        "treatment_size": 1469,
+        "total_sample_size": 2938,
+        "cohens_d": 0.103381,
+        "method_used": "statsmodels_NormalIndPower",
+        "power_curve": [
+          {
+            "n": 146.0,
+            "power": 0.143
+          },
+          {
+            "n": 292.0,
+            "power": 0.2393
+          },
+          {
+            "n": 439.0,
+            "power": 0.3345
+          },
+          {
+            "n": 586.0,
+            "power": 0.4246
+          },
+          {
+            "n": 733.0,
+            "power": 0.5077
+          },
+          {
+            "n": 880.0,
+            "power": 0.5826
+          },
+          {
+            "n": 1027.0,
+            "power": 0.649
+          },
+          {
+            "n": 1174.0,
+            "power": 0.707
+          },
+          {
+            "n": 1321.0,
+            "power": 0.7571
+          },
+          {
+            "n": 1468.0,
+            "power": 0.7998
+          },
+          {
+            "n": 1615.0,
+            "power": 0.8359
+          },
+          {
+            "n": 1762.0,
+            "power": 0.8662
+          },
+          {
+            "n": 1909.0,
+            "power": 0.8914
+          },
+          {
+            "n": 2056.0,
+            "power": 0.9122
+          },
+          {
+            "n": 2203.0,
+            "power": 0.9294
+          },
+          {
+            "n": 2350.0,
+            "power": 0.9434
+          },
+          {
+            "n": 2497.0,
+            "power": 0.9548
+          },
+          {
+            "n": 2644.0,
+            "power": 0.964
+          },
+          {
+            "n": 2791.0,
+            "power": 0.9714
+          },
+          {
+            "n": 2938.0,
+            "power": 0.9774
+          }
+        ]
+      },
+      "sequential_status": null,
+      "primary_result": {
+        "is_significant": true,
+        "p_value": 0.000257,
+        "confidence_interval": [
+          0.01597834699236218,
+          0.05282165300763779
+        ],
+        "lift_pct": 31.3869,
+        "lift_abs": 0.0344,
+        "test_statistic": 3.655081,
+        "test_type": "z-test",
+        "sample_warnings": [],
+        "interpretation": "Treatment conversion improved by 31.4% relative (+0.0344 absolute) (p=0.000, significant at \u03b1=0.05)"
+      },
+      "cuped_result": null,
+      "corrected_results": null,
+      "overall_recommendation": "STOP_WIN",
+      "plain_english": "The experiment has a winner. Treatment improved by 31.4% relative (+0.0344 absolute). Treatment conversion improved by 31.4% relative (+0.0344 absolute) (p=0.000, significant at \u03b1=0.05)",
+      "warnings": []
+    }
+  }
+}

@@ -5,6 +5,7 @@ import NewExperiment from './pages/NewExperiment'
 import ExperimentResults from './pages/ExperimentResults'
 import ExperimentReport from './pages/ExperimentReport'
 import Demo from './pages/Demo'
+import DemoExperimentResults from './pages/DemoExperimentResults'
 import NotFound from './pages/NotFound'
 
 function RouteError() {
@@ -64,7 +65,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/demo/:name',
-    element: <Demo />,
+    element: <DemoExperimentResults />,
     errorElement: <RouteError />,
   },
   {

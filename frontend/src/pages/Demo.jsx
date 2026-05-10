@@ -60,7 +60,7 @@ export default function Demo() {
       }
       actions={
         active && (
-          <Link to={`/experiments/demo-${active.name}`}>
+          <Link to={`/demo/${active.name}`}>
             <Button size="sm">
               <ArrowRight size={13} />
               Open Results
@@ -146,7 +146,7 @@ export default function Demo() {
             Click "Open Results" to explore the full analysis dashboard for this dataset, including
             heterogeneous treatment effects, segment breakdowns, and the AI stakeholder report.
           </p>
-          <Link to={`/experiments/demo-${active.name}`}>
+          <Link to={`/demo/${active.name}`}>
             <Button size="sm">
               Open Full Analysis <ArrowRight size={13} />
             </Button>

@@ -1,4 +1,5 @@
 function fmtPct(v, decimals = 2) {
+  if (v == null) return '—'
   return `${(v * 100).toFixed(decimals)}%`
 }
 
