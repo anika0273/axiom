@@ -1,13 +1,30 @@
+import { useState, useEffect, useCallback } from 'react'
 import { ChevronRight } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import KeyboardShortcutsModal from '../KeyboardShortcutsModal'
 
 /**
  * @typedef {{ label: string, href?: string }} Breadcrumb
  */
 
+function isInputFocused() {
+  const el = document.activeElement
+  if (!el) return false
+  const tag = el.tagName
+  return (
+    tag === 'INPUT' ||
+    tag === 'TEXTAREA' ||
+    tag === 'SELECT' ||
+    el.contentEditable === 'true' ||
+    el.isContentEditable
+  )
+}
+
 /**
  * Root page wrapper — sidebar + top bar + scrollable content area.
+ * Provides global keyboard shortcuts (N, /, ?, Esc).
+ *
  * @param {Object} props
  * @param {React.ReactNode} props.children
  * @param {Breadcrumb[]} [props.breadcrumbs=[]]
@@ -15,6 +32,49 @@ import Sidebar from './Sidebar'
  */
 export default function PageShell({ children, breadcrumbs = [], actions }) {
   const hasTopBar = breadcrumbs.length > 0 || actions
+  const navigate = useNavigate()
+  const [showShortcuts, setShowShortcuts] = useState(false)
+
+  const handleKeyDown = useCallback(
+    (e) => {
+      // Never fire shortcuts when the user is typing in an input
+      if (isInputFocused()) return
+
+      // Don't fire when modifier keys are held (let the browser handle Ctrl+N, etc.)
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      switch (e.key) {
+        case 'n':
+        case 'N':
+          e.preventDefault()
+          navigate('/experiments/new')
+          break
+
+        case '/':
+          e.preventDefault()
+          document.querySelector('[data-search-input]')?.focus()
+          break
+
+        case '?':
+          e.preventDefault()
+          setShowShortcuts((prev) => !prev)
+          break
+
+        case 'Escape':
+          setShowShortcuts(false)
+          break
+
+        default:
+          break
+      }
+    },
+    [navigate],
+  )
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
   return (
     <div className="flex min-h-screen">
@@ -30,10 +90,19 @@ export default function PageShell({ children, breadcrumbs = [], actions }) {
             <div className="max-w-content mx-auto px-6 h-14 flex items-center justify-between gap-4">
               {/* Breadcrumbs */}
               {breadcrumbs.length > 0 && (
-                <nav className="flex items-center gap-1 text-sm text-muted min-w-0">
+                <nav
+                  className="flex items-center gap-1 text-sm text-muted min-w-0"
+                  aria-label="Breadcrumb"
+                >
                   {breadcrumbs.map((crumb, i) => (
                     <span key={i} className="flex items-center gap-1 min-w-0">
-                      {i > 0 && <ChevronRight size={13} className="flex-shrink-0 opacity-40" />}
+                      {i > 0 && (
+                        <ChevronRight
+                          size={13}
+                          className="flex-shrink-0 opacity-40"
+                          aria-hidden="true"
+                        />
+                      )}
                       {crumb.href && i < breadcrumbs.length - 1 ? (
                         <Link
                           to={crumb.href}
@@ -42,7 +111,14 @@ export default function PageShell({ children, breadcrumbs = [], actions }) {
                           {crumb.label}
                         </Link>
                       ) : (
-                        <span className={i === breadcrumbs.length - 1 ? 'text-primary font-medium truncate' : 'truncate'}>
+                        <span
+                          className={
+                            i === breadcrumbs.length - 1
+                              ? 'text-primary font-medium truncate'
+                              : 'truncate'
+                          }
+                          aria-current={i === breadcrumbs.length - 1 ? 'page' : undefined}
+                        >
                           {crumb.label}
                         </span>
                       )}
@@ -65,6 +141,11 @@ export default function PageShell({ children, breadcrumbs = [], actions }) {
           {children}
         </main>
       </div>
+
+      {/* Global keyboard shortcuts modal */}
+      {showShortcuts && (
+        <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />
+      )}
     </div>
   )
 }

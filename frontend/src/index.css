@@ -95,3 +95,14 @@
 .field-highlight {
   animation: field-flash 1.2s ease-out forwards;
 }
+
+/* Accessible focus-visible ring — shown only on keyboard nav, not mouse clicks */
+:focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
