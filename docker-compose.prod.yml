@@ -1,0 +1,97 @@
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  # No host port — accessible only by backend on the internal network.
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:     ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+      start_period: 10s
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus:   "0.5"
+
+  # ── FastAPI backend ───────────────────────────────────────────────────────
+  # No host port — accessible only via nginx on the internal network.
+  backend:
+    build:
+      context:    .
+      dockerfile: backend/Dockerfile
+    image: axiom-backend:latest
+    restart: always
+    env_file: .env
+    # environment: overrides env_file — set shell vars before running prod-start.sh
+    # to avoid dev .env values leaking into the production container.
+    environment:
+      DATABASE_URL:  ${DATABASE_URL:-postgresql+asyncpg://axiom:changeme@postgres:5432/axiom}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      ENVIRONMENT:   ${ENVIRONMENT:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:     ["CMD", "curl", "-f", "http://localhost:8000/api/v1/stats/health"]
+      interval: 30s
+      timeout:  10s
+      start_period: 60s
+      retries:  3
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus:   "1.0"
+
+  # ── React frontend (nginx serving built static files) ─────────────────────
+  # No host port — accessed via the nginx proxy on the internal network.
+  frontend:
+    build:
+      context:    .
+      dockerfile: frontend/Dockerfile
+    image: axiom-frontend:latest
+    restart: always
+    networks:
+      - internal
+
+  # ── nginx reverse proxy ───────────────────────────────────────────────────
+  # The ONLY container with a host port binding.
+  # Routes /api/* to backend, /* to frontend.
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus:   "0.25"
+
+volumes:
+  postgres_data:
+
+networks:
+  internal:
+    driver: bridge
