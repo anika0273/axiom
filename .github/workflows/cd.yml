@@ -1,0 +1,199 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false  # never cancel an in-flight deploy
+
+jobs:
+  # ── Job 1: Build & push images to ghcr.io ────────────────────────────────
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.short_sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
+          echo "short_sha=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+          echo "Tags: latest, sha-${SHORT_SHA}, ${TIMESTAMP}"
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-prod-${{ hashFiles('backend/Dockerfile', 'frontend/Dockerfile') }}-${{ github.sha }}
+          restore-keys: |
+            docker-prod-${{ hashFiles('backend/Dockerfile', 'frontend/Dockerfile') }}-
+
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/anika0273/axiom-backend:latest
+            ghcr.io/anika0273/axiom-backend:${{ steps.meta.outputs.short_sha }}
+            ghcr.io/anika0273/axiom-backend:${{ steps.meta.outputs.timestamp }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/anika0273/axiom
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build & push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/anika0273/axiom-frontend:latest
+            ghcr.io/anika0273/axiom-frontend:${{ steps.meta.outputs.short_sha }}
+            ghcr.io/anika0273/axiom-frontend:${{ steps.meta.outputs.timestamp }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/anika0273/axiom
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Rotate build cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  # ── Job 2: Deploy to Railway ──────────────────────────────────────────────
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    timeout-minutes: 10
+    environment: production  # enables manual approval gate if configured
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service backend --detach
+
+      - name: Deploy frontend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service frontend --detach
+
+      - name: Wait for services to start
+        run: sleep 60
+
+      - name: Smoke test — API health
+        run: |
+          echo "Testing API health..."
+          curl --fail --retry 3 --retry-delay 10 --retry-connrefused \
+            "${{ secrets.PRODUCTION_URL }}/api/v1/stats/health" \
+            -H "Accept: application/json" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print('Health:', d); sys.exit(0 if d.get('status') in ('ok','healthy') else 1)"
+
+      - name: Smoke test — Frontend
+        run: |
+          echo "Testing frontend..."
+          curl --fail --retry 3 --retry-delay 10 --retry-connrefused \
+            "${{ secrets.PRODUCTION_URL }}/" \
+            -o /dev/null -w "HTTP %{http_code}\n"
+
+      - name: Rollback on failure
+        if: failure()
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "Smoke tests failed — rolling back..."
+          railway rollback --service backend || true
+          railway rollback --service frontend || true
+          echo "Rollback triggered. Check Railway dashboard for status."
+          exit 1
+
+      - name: Tag successful deploy
+        run: |
+          echo "✅ Deployed ${{ needs.build-and-push.outputs.image_tag }} to production"
+          echo "URL: ${{ secrets.PRODUCTION_URL }}"
+
+  # ── Job 3: Notify (always runs) ──────────────────────────────────────────
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy]
+    if: always()
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Post deploy status to open PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploy = '${{ needs.deploy.result }}';
+            const imageTag = '${{ needs.build-and-push.outputs.image_tag }}';
+            const sha7 = context.sha.substring(0, 7);
+
+            const icon = deploy === 'success' ? '✅' : '❌';
+            const verb = deploy === 'success' ? 'Deployed' : 'Deploy failed';
+            const body = deploy === 'success'
+              ? `${icon} **${verb}** \`${imageTag}\` to production — [View logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+              : `${icon} **${verb}** for \`sha-${sha7}\` — [View logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+
+            // Find open PRs whose head matches this SHA
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+            });
+
+            const matched = prs.filter(pr => pr.merge_commit_sha === context.sha || pr.head.sha === context.sha);
+
+            for (const pr of matched) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body,
+              });
+            }
+
+            // Always write to step summary
+            core.summary
+              .addHeading(deploy === 'success' ? '✅ Deploy Succeeded' : '❌ Deploy Failed')
+              .addTable([
+                [{data: 'Field', header: true}, {data: 'Value', header: true}],
+                ['Image tag', imageTag],
+                ['Commit', `sha-${sha7}`],
+                ['Status', deploy],
+              ])
+              .write();

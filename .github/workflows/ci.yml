@@ -1,0 +1,265 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Job 1: Lint & type-check (fastest gate) ──────────────────────────────
+  lint-and-type-check:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install linting dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: black --check
+        run: black --check backend/
+
+      - name: isort --check-only
+        run: isort --check-only backend/
+
+      - name: ruff check
+        run: ruff check backend/
+
+      - name: mypy (advisory — does not fail the job)
+        run: mypy backend/app/ --ignore-missing-imports
+        continue-on-error: true
+
+  # ── Job 2: Unit & API tests ───────────────────────────────────────────────
+  unit-tests:
+    name: Unit & API Tests
+    runs-on: ubuntu-latest
+    needs: lint-and-type-check
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: axiom
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: axiom_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U axiom -d axiom_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://axiom:test@localhost:5432/axiom_test
+      INTEGRATION_DB_URL: postgresql+asyncpg://axiom:test@localhost:5432/axiom_test
+      ANTHROPIC_API_KEY: sk-placeholder-not-used-by-unit-tests
+      SECRET_KEY: test-secret-key-for-ci-only
+      ENVIRONMENT: development
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run Alembic migrations
+        run: PYTHONPATH=backend python -m alembic upgrade head
+
+      - name: Run tests
+        run: |
+          PYTHONPATH=backend pytest \
+            backend/tests/stats/ \
+            backend/tests/ml/ \
+            backend/tests/api/ \
+            backend/tests/intelligence/ \
+            backend/tests/unit/ \
+            backend/tests/validation/ \
+            --ignore=backend/tests/integration/ \
+            -m "not integration" \
+            -x \
+            --cov=backend/app \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=80 \
+            -q
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+  # ── Job 3: Frontend build (parallel with unit-tests) ─────────────────────
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    needs: lint-and-type-check
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: TypeScript type-check
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Verify dist output
+        run: |
+          test -f frontend/dist/index.html || (echo "ERROR: dist/index.html missing" && exit 1)
+          echo "dist size: $(du -sh frontend/dist | cut -f1)"
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 1
+
+  # ── Job 4: Docker build (depends on both test jobs) ───────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [unit-tests, frontend-build]
+    timeout-minutes: 8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-${{ hashFiles('backend/Dockerfile', 'frontend/Dockerfile') }}-${{ github.sha }}
+          restore-keys: |
+            docker-${{ hashFiles('backend/Dockerfile', 'frontend/Dockerfile') }}-
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: false
+          tags: axiom-backend:test
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          load: true
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: false
+          tags: axiom-frontend:test
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          load: true
+
+      # Rotate cache to avoid unbounded growth
+      - name: Rotate build cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Smoke-test backend image
+        run: |
+          docker run -d \
+            --name axiom-backend-test \
+            -p 8000:8000 \
+            -e DATABASE_URL=postgresql+asyncpg://axiom:test@localhost:5432/axiom_test \
+            -e SECRET_KEY=test-secret-key \
+            -e ANTHROPIC_API_KEY=sk-placeholder \
+            -e ENVIRONMENT=development \
+            axiom-backend:test
+          echo "Waiting for container to start..."
+          sleep 10
+          docker ps -a
+          docker logs axiom-backend-test || true
+          docker stop axiom-backend-test || true
+
+  # ── Job 5: Summary (always runs) ─────────────────────────────────────────
+  post-status:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [lint-and-type-check, unit-tests, frontend-build, docker-build]
+    if: always()
+
+    steps:
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: .
+        continue-on-error: true
+
+      - name: Generate job summary
+        env:
+          LINT_RESULT: ${{ needs.lint-and-type-check.result }}
+          TESTS_RESULT: ${{ needs.unit-tests.result }}
+          FRONTEND_RESULT: ${{ needs.frontend-build.result }}
+          DOCKER_RESULT: ${{ needs.docker-build.result }}
+        run: |
+          echo "## CI Results — \`${{ github.ref_name }}\` @ \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Type Check | $( [ "$LINT_RESULT" = "success" ] && echo "✅ passed" || echo "❌ $LINT_RESULT" ) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit & API Tests  | $( [ "$TESTS_RESULT" = "success" ] && echo "✅ passed" || echo "❌ $TESTS_RESULT" ) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Build    | $( [ "$FRONTEND_RESULT" = "success" ] && echo "✅ passed" || echo "❌ $FRONTEND_RESULT" ) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build      | $( [ "$DOCKER_RESULT" = "success" ] && echo "✅ passed" || echo "❌ $DOCKER_RESULT" ) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage.xml ]; then
+            LINES=$(python3 -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+          pct = float(root.attrib.get('line-rate', 0)) * 100
+          print(f'{pct:.1f}%')
+          " 2>/dev/null || echo "n/a")
+            echo "**Coverage:** $LINES" >> $GITHUB_STEP_SUMMARY
+          fi
+          OVERALL="success"
+          for r in "$LINT_RESULT" "$TESTS_RESULT" "$FRONTEND_RESULT" "$DOCKER_RESULT"; do
+            [ "$r" != "success" ] && OVERALL="failure" && break
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          [ "$OVERALL" = "success" ] && echo "### ✅ All checks passed — ready to merge" >> $GITHUB_STEP_SUMMARY || echo "### ❌ One or more checks failed" >> $GITHUB_STEP_SUMMARY
