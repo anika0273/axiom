@@ -1,6 +1,6 @@
 # Axiom — AI-Powered A/B Testing Platform
 
-## Build Status — Phase 4 Complete ✓ (2026-05-10)
+## Build Status — Phase 5 Complete ✓ (2026-05-11)
 
 ### Phase 1 — Stats Engine & API
 | Component | Status | Detail |
@@ -34,6 +34,24 @@
 | Performance | ✓ Route code-splitting | All pages lazy-loaded via `React.lazy` + `Suspense`; fonts preloaded in index.html |
 | Frontend docs | ✓ Complete | `docs/frontend/ARCHITECTURE.md` — hierarchy, state, data fetching, streaming, tokens |
 
+### Phase 5 — Production Deployment (complete 2026-05-11)
+| Component | Status | Detail |
+|---|---|---|
+| Production Docker | ✓ Complete | `docker-compose.prod.yml` — multi-stage build, non-root user, resource limits, internal network |
+| Nginx reverse proxy | ✓ Complete | `infra/nginx/` — SSL termination, gzip, rate limiting (10r/s API, 2r/s AI), SSE-aware |
+| Security headers | ✓ Complete | X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy via nginx |
+| CI/CD pipeline | ✓ Complete | `.github/workflows/integration-tests.yml` — pytest + ruff + TypeScript type-check |
+| Production start script | ✓ Complete | `infra/scripts/prod-start.sh` — validates env, snapshots for rollback, migrates, health-checks |
+| Railway deployment | ✓ Configured | Staging on `main` merge; production on `v*` tag |
+| Structured logging | ✓ Complete | `structlog` — JSON in production, human-readable in development |
+| Performance | ✓ Complete | nginx gzip, rate limiting, React route code-splitting, pre-aggregated rollups |
+| Release | ✓ v1.0.0 | Tagged and pushed to GitHub |
+
+### Production URLs
+- **GitHub:** https://github.com/anika0273/axiom
+- **Railway (staging):** Deploy `main` branch to Railway to obtain URL
+- **Railway (production):** Deploy tag `v1.0.0` to Railway to obtain URL
+
 ### Phase 3 — Claude AI Intelligence Layer (complete 2026-05-06)
 | Component | Status | Detail |
 |---|---|---|
@@ -64,6 +82,9 @@
 **Cost monitoring:** `curl http://localhost:8000/api/v1/intelligence/usage`
 **Smoke test:** `PYTHONPATH=backend python scripts/smoke_test_ml.py`
 **Migration:** `docker compose exec backend alembic upgrade head`
+**Production start:** `./infra/scripts/prod-start.sh` (validates env, builds, migrates, health-checks)
+**Production stack:** `docker compose -f docker-compose.prod.yml up -d`
+**Tag release:** `git tag v1.0.0 && git push --tags`
 
 ---
 
