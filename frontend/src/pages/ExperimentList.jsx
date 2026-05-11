@@ -22,7 +22,7 @@ import APIError from '../components/errors/APIError'
 
 const API_BASE = 'http://localhost:8000'
 const PAGE_SIZE = 10
-const FETCH_LIMIT = 200
+const FETCH_LIMIT = 100
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
