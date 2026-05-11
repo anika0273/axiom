@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import {
   LineChart,
   Line,
@@ -40,7 +41,7 @@ const CustomTooltip = ({ active, payload, label }) => {
  * @param {number|null} props.significanceDay - day significance was reached (draws a vertical green line)
  * @param {boolean} [props.isRunning]
  */
-export default function SequentialChart({ data, significanceDay, isRunning = false }) {
+const SequentialChart = memo(function SequentialChart({ data, significanceDay, isRunning = false }) {
   if (!data?.length) return null
 
   const minZ = Math.min(...data.map((d) => d.lowerBound ?? 0, d.zStat ?? 0))
@@ -168,4 +169,6 @@ export default function SequentialChart({ data, significanceDay, isRunning = fal
       </div>
     </div>
   )
-}
+})
+
+export default SequentialChart

@@ -22,25 +22,25 @@ export default function Button({
   const base = [
     'inline-flex items-center justify-center rounded-md font-medium',
     'transition-all duration-150 ease-in-out select-none',
-    'focus:outline-none focus:ring-2 focus:ring-offset-1',
-    'focus:ring-offset-deep',
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1',
+    'focus-visible:ring-offset-deep',
   ]
 
   const variants = {
     primary: [
-      'bg-blue text-white focus:ring-blue',
+      'bg-blue text-white focus-visible:ring-blue',
       'hover:brightness-110 shadow-glow hover:shadow-glow-lg',
     ],
     secondary: [
-      'bg-elevated border border-subtle text-primary focus:ring-active',
+      'bg-elevated border border-subtle text-primary focus-visible:ring-active',
       'hover:bg-hover hover:border-active',
     ],
     ghost: [
-      'text-secondary focus:ring-subtle',
+      'text-secondary focus-visible:ring-subtle',
       'hover:text-primary hover:bg-hover',
     ],
     danger: [
-      'bg-red text-white focus:ring-red',
+      'bg-red text-white focus-visible:ring-red',
       'hover:brightness-110',
     ],
   }

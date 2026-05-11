@@ -1,12 +1,26 @@
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter, useRouteError, Link } from 'react-router-dom'
-import Home from './pages/Home'
-import ExperimentList from './pages/ExperimentList'
-import NewExperiment from './pages/NewExperiment'
-import ExperimentResults from './pages/ExperimentResults'
-import StakeholderReport from './pages/StakeholderReport'
-import Demo from './pages/Demo'
-import DemoExperimentResults from './pages/DemoExperimentResults'
-import NotFound from './pages/NotFound'
+import LoadingSpinner from './components/ui/LoadingSpinner'
+
+const Home = lazy(() => import('./pages/Home'))
+const ExperimentList = lazy(() => import('./pages/ExperimentList'))
+const NewExperiment = lazy(() => import('./pages/NewExperiment'))
+const ExperimentResults = lazy(() => import('./pages/ExperimentResults'))
+const StakeholderReport = lazy(() => import('./pages/StakeholderReport'))
+const Demo = lazy(() => import('./pages/Demo'))
+const DemoExperimentResults = lazy(() => import('./pages/DemoExperimentResults'))
+const NotFound = lazy(() => import('./pages/NotFound'))
+
+function PageFallback() {
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{ backgroundColor: 'var(--color-bg-deep)' }}
+    >
+      <LoadingSpinner size={32} />
+    </div>
+  )
+}
 
 function RouteError() {
   const error = useRouteError()
@@ -35,42 +49,42 @@ function RouteError() {
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <Home />,
+    element: <Suspense fallback={<PageFallback />}><Home /></Suspense>,
     errorElement: <RouteError />,
   },
   {
     path: '/experiments',
-    element: <ExperimentList />,
+    element: <Suspense fallback={<PageFallback />}><ExperimentList /></Suspense>,
     errorElement: <RouteError />,
   },
   {
     path: '/experiments/new',
-    element: <NewExperiment />,
+    element: <Suspense fallback={<PageFallback />}><NewExperiment /></Suspense>,
     errorElement: <RouteError />,
   },
   {
     path: '/experiments/:id',
-    element: <ExperimentResults />,
+    element: <Suspense fallback={<PageFallback />}><ExperimentResults /></Suspense>,
     errorElement: <RouteError />,
   },
   {
     path: '/experiments/:id/report',
-    element: <StakeholderReport />,
+    element: <Suspense fallback={<PageFallback />}><StakeholderReport /></Suspense>,
     errorElement: <RouteError />,
   },
   {
     path: '/demo',
-    element: <Demo />,
+    element: <Suspense fallback={<PageFallback />}><Demo /></Suspense>,
     errorElement: <RouteError />,
   },
   {
     path: '/demo/:name',
-    element: <DemoExperimentResults />,
+    element: <Suspense fallback={<PageFallback />}><DemoExperimentResults /></Suspense>,
     errorElement: <RouteError />,
   },
   {
     path: '*',
-    element: <NotFound />,
+    element: <Suspense fallback={<PageFallback />}><NotFound /></Suspense>,
   },
 ])
 

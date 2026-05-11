@@ -26,7 +26,7 @@ export default function Card({
   return (
     <div
       className={clsx(
-        'rounded-lg border border-subtle',
+        'rounded-md border border-subtle',
         variant === 'default' && 'bg-card shadow-card',
         variant === 'elevated' && 'bg-elevated shadow-elevated',
         isAccent && 'bg-card shadow-card border-l-2',

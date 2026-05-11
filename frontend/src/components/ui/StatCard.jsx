@@ -18,7 +18,7 @@ export default function StatCard({ label, value, trend, sparkline, className }) 
   return (
     <div
       className={clsx(
-        'bg-card border border-subtle rounded-lg p-4 flex flex-col gap-3',
+        'bg-card border border-subtle rounded-md p-4 flex flex-col gap-3',
         className,
       )}
     >

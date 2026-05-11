@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import {
   BarChart,
   Bar,
@@ -58,7 +59,7 @@ const CustomTooltip = ({ active, payload, label }) => {
  * }>} props.metrics
  * @param {string} [props.title]
  */
-export default function MetricComparisonChart({ metrics, title = 'Primary Metric Comparison' }) {
+const MetricComparisonChart = memo(function MetricComparisonChart({ metrics, title = 'Primary Metric Comparison' }) {
   if (!metrics?.length) return null
 
   const treatmentColor = (sig) =>
@@ -228,4 +229,6 @@ export default function MetricComparisonChart({ metrics, title = 'Primary Metric
       </div>
     </div>
   )
-}
+})
+
+export default MetricComparisonChart

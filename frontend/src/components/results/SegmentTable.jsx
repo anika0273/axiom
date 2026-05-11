@@ -1,4 +1,5 @@
-import { Star, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { memo } from 'react'
+import { Star, TrendingUp, Minus } from 'lucide-react'
 
 function liftStyle(lift, significant) {
   if (!significant) return { color: 'var(--color-text-muted)' }
@@ -22,7 +23,7 @@ function fmtLift(lift) {
  * @param {{ segments: Array, responsive_segments: number[], overall_recommendation: string }} props.segments
  * @param {{ ate: number, stability_score: number, business_recommendation: string, top_interactions: string[] }|null} props.hte
  */
-export default function SegmentTable({ segments, hte }) {
+const SegmentTable = memo(function SegmentTable({ segments, hte }) {
   if (!segments?.segments?.length) return null
 
   const { segments: segs, responsive_segments, overall_recommendation, optimal_k } = segments
@@ -201,4 +202,6 @@ export default function SegmentTable({ segments, hte }) {
       )}
     </div>
   )
-}
+})
+
+export default SegmentTable

@@ -81,7 +81,7 @@ export default function MetricsRow({
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-lg border border-subtle bg-card p-4"
+          className="rounded-md border border-subtle bg-card p-4"
           style={{ borderLeftWidth: 3, borderLeftColor: card.accentColor }}
         >
           <p

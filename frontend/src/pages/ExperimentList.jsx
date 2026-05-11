@@ -290,7 +290,7 @@ function FilterTabs({ active, counts, onChange }) {
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(tab)}
-            className="relative px-4 py-2.5 text-xs font-medium capitalize transition-colors select-none"
+            className="relative px-4 py-2.5 text-xs font-medium capitalize transition-colors select-none hover:text-secondary"
             style={{
               color: isActive ? 'var(--color-accent-blue)' : 'var(--color-text-muted)',
             }}

@@ -1,6 +1,6 @@
 # Axiom — AI-Powered A/B Testing Platform
 
-## Build Status — Phase 3 Complete ✓ (2026-05-06)
+## Build Status — Phase 4 Complete ✓ (2026-05-10)
 
 ### Phase 1 — Stats Engine & API
 | Component | Status | Detail |
@@ -22,6 +22,17 @@
 | Combined coverage | 85% overall | `backend/app/ml/` all modules ≥ 93% |
 | ML docs | ✓ Complete | `docs/ml/EXPLAINERS.md`, `docs/ml/DECISIONS.md` |
 | Smoke test | ✓ Passing | `scripts/smoke_test_ml.py` — end-to-end regression check |
+
+### Phase 4 — Professional React Frontend (complete 2026-05-10)
+| Component | Status | Detail |
+|---|---|---|
+| Pages | ✓ 9/9 E2E journeys passing | Home, ExperimentList, NewExperiment (wizard), ExperimentResults, StakeholderReport, Demo, DemoExperimentResults, NotFound, Error |
+| Design system | ✓ Complete | CSS variables, Syne headings, DM Mono data, 6px card radius, focus-visible rings |
+| Charts | ✓ Recharts | `components/charts/` — MetricComparisonChart, SequentialChart; wrapped with React.memo |
+| Streaming UI | ✓ SSE + simulated progress | `useStreamingInterpretation` (EventSource), `useStreamingReport` (POST + interval) |
+| Demo mode | ✓ Zero API calls | Pre-computed local JSON; 3 datasets (ecommerce, saas, marketplace) |
+| Performance | ✓ Route code-splitting | All pages lazy-loaded via `React.lazy` + `Suspense`; fonts preloaded in index.html |
+| Frontend docs | ✓ Complete | `docs/frontend/ARCHITECTURE.md` — hierarchy, state, data fetching, streaming, tokens |
 
 ### Phase 3 — Claude AI Intelligence Layer (complete 2026-05-06)
 | Component | Status | Detail |
@@ -410,6 +421,29 @@ Stats functions in `stats/` must be benchmarked in their unit tests using `pytes
 - Charts must render a `<ChartEmptyState>` when `data` is empty, not a broken/empty Recharts canvas.
 - Confidence interval bands are rendered as `<Area>` with 20% opacity over the primary `<Line>`.
 
+### Design Tokens
+
+All colours and fonts are CSS custom properties in `frontend/src/index.css`.
+
+| Variable | Value | Purpose |
+|---|---|---|
+| `--color-bg-deep` | `#0A0E1A` | Page background |
+| `--color-bg-card` | `#111827` | Card / panel surface |
+| `--color-bg-elevated` | `#1A2234` | Table headers, dropdowns |
+| `--color-bg-hover` | `#1E2D3D` | Hover state |
+| `--color-border-subtle` | `#1E2D40` | Default border |
+| `--color-border-active` | `#2A4A6B` | Focused border |
+| `--color-accent-blue` | `#3B82F6` | Primary action, data |
+| `--color-accent-green` | `#10B981` | Significant / positive |
+| `--color-accent-amber` | `#F59E0B` | Warning / not-yet-significant |
+| `--color-accent-red` | `#EF4444` | Danger / negative |
+| `--color-text-primary` | `#F1F5F9` | Body text |
+| `--color-text-secondary` | `#94A3B8` | Secondary labels |
+| `--color-text-muted` | `#475569` | Placeholder, empty states |
+| `--color-text-data` | `#60A5FA` | Inline metric values |
+
+Fonts: `Syne` for headings, `DM Mono` for numeric data / code, `DM Sans` for body.
+
 ---
 
 ## Testing Matrix
@@ -528,9 +562,9 @@ See `.env.example` for the full list. Key variables:
 cd backend
 python -m uvicorn app.main:app --reload
 
-# Frontend
+# Frontend (Node 18+ required — system default may be older)
 cd frontend
-npm run dev
+PATH="/usr/local/opt/node/bin:$PATH" npm run dev
 
 # Full stack
 docker-compose up
