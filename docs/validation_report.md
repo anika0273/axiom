@@ -1,6 +1,6 @@
 # Axiom Stats Engine — Validation Report
 
-> Generated: 2026-05-11 23:04 UTC  
+> Generated: 2026-06-05 02:28 UTC  
 > Total: 42 scenarios | Passed: 42 | Failed: 0
 
 ---
@@ -71,9 +71,9 @@
 | Scenario | Expected | Observed | Delta | Tolerance | Status | Likely Cause |
 |----------|----------|----------|-------|-----------|:------:|:-------------|
 | SEQ1: z*(t_k) at K=5 looks, α=0.05, two-sided | `z*=[4.383, 3.099, 2.53, 2.191, 1.96]` | `z*=[4.383, 3.099, 2.53, 2.191, 1.96]` | max Δ=0.0000 | ≤0.001 | ✅ PASS | — |
-| SEQ2: alpha budget K=3, α=0.05 | `sum(α_spent) = 0.05` | `sum(α_spent) = 0.050000` | 0.00e+00 | ≤0.001 | ✅ PASS | — |
-| SEQ2: alpha budget K=5, α=0.05 | `sum(α_spent) = 0.05` | `sum(α_spent) = 0.050000` | 0.00e+00 | ≤0.001 | ✅ PASS | — |
-| SEQ2: alpha budget K=10, α=0.05 | `sum(α_spent) = 0.05` | `sum(α_spent) = 0.050000` | 0.00e+00 | ≤0.001 | ✅ PASS | — |
+| SEQ2: alpha budget K=3, α=0.05 | `sum(α_spent) = 0.05` | `sum(α_spent) = 0.050000` | 1.39e-17 | ≤0.001 | ✅ PASS | — |
+| SEQ2: alpha budget K=5, α=0.05 | `sum(α_spent) = 0.05` | `sum(α_spent) = 0.050000` | 6.94e-18 | ≤0.001 | ✅ PASS | — |
+| SEQ2: alpha budget K=10, α=0.05 | `sum(α_spent) = 0.05` | `sum(α_spent) = 0.050000` | 6.94e-18 | ≤0.001 | ✅ PASS | — |
 | SEQ3: monotonicity K=8, α=0.05 | `z*[k] > z*[k+1] for all k (strictly decreasing)` | `z*=[5.544, 3.920, 3.201, 2.772, 2.479, 2.263, 2.095, 1.960]` | 0 violation(s) | 0 violations | ✅ PASS | — |
 | SEQ4: stop_win, z=3.5, t=0.50 (K=4) | `STOP_WIN` | `STOP_WIN` | exact match required | exact | ✅ PASS | — |
 | SEQ4: continue, z=1.5, t=0.50 (K=4) | `CONTINUE` | `CONTINUE` | exact match required | exact | ✅ PASS | — |
