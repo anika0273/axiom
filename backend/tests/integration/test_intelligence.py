@@ -31,14 +31,8 @@ from app.intelligence.interpreter import (
     parse_stats_from_json,
 )
 from app.intelligence.planner import PROMPT_VERSION as PLANNER_VERSION
-from app.intelligence.planner import (
-    ExperimentPlanResult,
-    plan_experiment,
-)
-from app.intelligence.reporter import (
-    StakeholderReport,
-    generate_report,
-)
+from app.intelligence.planner import ExperimentPlanResult, plan_experiment
+from app.intelligence.reporter import StakeholderReport, generate_report
 from app.models.experiment import AIInteraction
 from app.stats.power import calculate_sample_size
 from tests.integration.conftest import _retry_once, count_ai_interactions
