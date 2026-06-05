@@ -9,11 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app.ml.engine import (
-    MLAnalysisResult,
-    MLExperimentInput,
-    run_ml_analysis,
-)
+from app.ml.engine import MLAnalysisResult, MLExperimentInput, run_ml_analysis
 
 # ---------------------------------------------------------------------------
 # Synthetic data factories
