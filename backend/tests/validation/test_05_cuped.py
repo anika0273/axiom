@@ -264,7 +264,6 @@ def test_c4_zero_correlation_graceful_degradation() -> None:
     result = apply_cuped(pre, post, assign)
 
     rho = abs(result.correlation_pre_post)
-    theta = abs(result.theta)
     reduction = result.variance_reduction_pct
 
     passed = rho < 0.15 and reduction < 5.0

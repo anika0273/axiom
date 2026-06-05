@@ -722,7 +722,6 @@ def _gen_marketplace_fee() -> SampleExperiment:
     rng = np.random.default_rng(456)
     n_total = 20_000
     n_treatment = 10_000
-    n_control = 10_000
 
     # ── Correlated features via latent tenure factor ───────────────────────────
     seller_tenure_days = np.clip(rng.exponential(scale=150, size=n_total), 0.0, 1000.0)

@@ -199,7 +199,7 @@ def _segment_lift_uncertainty(
 
     # Primary cluster centroids (used for matching).
     primary = KMeans(n_clusters=k, n_init=10, random_state=random_state)
-    primary_labels = primary.fit_predict(X_scaled)
+    primary.fit(X_scaled)
     primary_centroids = primary.cluster_centers_
 
     for run in range(n_runs):

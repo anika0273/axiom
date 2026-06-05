@@ -383,7 +383,6 @@ async def test_reporter_all_sections(
         ), f"word_count={report.word_count} outside expected range [200, 1200]"
 
         # DB: at least one new row (generate_report calls _log_to_db)
-        after_count = await count_ai_interactions(db_session)
         # Capture before_count once — it's updated by the planner tests in the same session
         # We verify at least one row exists with this experiment name
         from sqlalchemy import select as sa_select

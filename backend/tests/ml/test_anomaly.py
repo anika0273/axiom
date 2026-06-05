@@ -182,7 +182,7 @@ def test_srm_uses_chi2_contingency():
     n_treatment = pd.Series([400] * 20)
     with patch("app.ml.anomaly.chi2_contingency") as mock_chi2:
         mock_chi2.return_value = (10.0, 0.001, 1, np.array([[600, 400], [500, 500]]))
-        check = check_srm(n_control, n_treatment)
+        check_srm(n_control, n_treatment)
         mock_chi2.assert_called_once()
 
 

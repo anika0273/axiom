@@ -116,11 +116,6 @@ def check_srm(
     expected_treatment = total * expected_ratio
     expected_control = total * (1.0 - expected_ratio)
 
-    # chi2_contingency expects a 2D observed table; use a 1×2 table for
-    # goodness-of-fit against the expected split.
-    observed = np.array([[total_treatment, total_control]])
-    expected = np.array([[expected_treatment, expected_control]])
-
     # We use chi2_contingency with the lambda_ parameter to get the
     # Pearson chi-squared statistic directly.  For a 1×2 table with fixed
     # expected values we compute the statistic manually via chi2_contingency

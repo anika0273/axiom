@@ -333,7 +333,7 @@ def MLAnalysisResultData_from_json(
     payload: dict,
     record,
     experiment_id: UUID,
-) -> "MLAnalysisResponse.model_fields['data'].annotation":  # type: ignore[return]
+) -> "MLAnalysisResultData":  # type: ignore[return]  # noqa: F821
     """Reconstruct MLAnalysisResultData from a stored JSONB payload."""
     from app.schemas.ml import MLAnalysisResultData
 

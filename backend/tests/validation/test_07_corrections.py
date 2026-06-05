@@ -89,7 +89,6 @@ def test_cor1_known_answer_all_three() -> None:
         "fdr_bh": [True, True, True, False],
     }
 
-    all_pass = True
     for method, exp_n in expected.items():
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
@@ -104,7 +103,6 @@ def test_cor1_known_answer_all_three() -> None:
 
         likely = ""
         if not pass_n or not pass_mask:
-            all_pass = False
             if method == "bonferroni":
                 likely = "Bonferroni threshold = α/n = 0.0125; only p[0]=0.008 passes."
             elif method == "holm_bonferroni":

@@ -249,7 +249,6 @@ def _classify_pattern(
     """Return (pattern, projected_stable_lift, days_to_stable)."""
     ci_lo, ci_hi = slope_ci
     ci_overlaps_zero = ci_lo <= 0 <= ci_hi
-    slope_near_zero = abs(slope) < _SLOPE_NEAR_ZERO
 
     # NOVELTY: declining effect with initial positive lift
     if not ci_overlaps_zero and slope < 0 and initial_lift > 0:
