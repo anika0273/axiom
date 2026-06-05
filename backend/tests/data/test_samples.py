@@ -96,7 +96,7 @@ def test_mkt_user_data_shape(mkt: SampleExperiment) -> None:
     df = mkt.user_data
     assert len(df) == 20_000
     assert set(df["treatment"].unique()).issubset({0, 1})
-    assert df["outcome"].min() > 0          # GMV is always positive
+    assert df["outcome"].min() > 0  # GMV is always positive
     assert df["seller_tenure_days"].min() >= 0
     assert df["seller_tenure_days"].max() <= 1000
     assert df["avg_rating"].min() >= 3.0
@@ -121,7 +121,13 @@ def test_daily_data_length(name: str, n_days: int) -> None:
 @pytest.mark.parametrize("name", SAMPLE_NAMES)
 def test_daily_data_required_columns(name: str) -> None:
     df = load_sample_experiment(name).daily_data
-    for col in ("date", "control_metric", "treatment_metric", "n_control", "n_treatment"):
+    for col in (
+        "date",
+        "control_metric",
+        "treatment_metric",
+        "n_control",
+        "n_treatment",
+    ):
         assert col in df.columns, f"{name}: missing daily column {col}"
 
 
@@ -141,9 +147,9 @@ def test_eco_weekend_lower_traffic(eco: SampleExperiment) -> None:
     df["total_traffic"] = df["n_control"] + df["n_treatment"]
     weekend = df[df["dow"] >= 5]["total_traffic"].mean()
     weekday = df[df["dow"] < 5]["total_traffic"].mean()
-    assert weekend < weekday, (
-        f"Weekend traffic ({weekend:.1f}) should be lower than weekday ({weekday:.1f})"
-    )
+    assert (
+        weekend < weekday
+    ), f"Weekend traffic ({weekend:.1f}) should be lower than weekday ({weekday:.1f})"
 
 
 def test_saas_monday_higher_than_friday(saas: SampleExperiment) -> None:
@@ -153,9 +159,9 @@ def test_saas_monday_higher_than_friday(saas: SampleExperiment) -> None:
     df["total"] = df["n_control"] + df["n_treatment"]
     mon = df[df["dow"] == 0]["total"].mean()
     fri = df[df["dow"] == 4]["total"].mean()
-    assert mon > fri, (
-        f"Monday ({mon:.1f}) should have more signups than Friday ({fri:.1f})"
-    )
+    assert (
+        mon > fri
+    ), f"Monday ({mon:.1f}) should have more signups than Friday ({fri:.1f})"
 
 
 def test_mkt_anomaly_days_high_volume(mkt: SampleExperiment) -> None:
@@ -177,7 +183,9 @@ def test_mkt_anomaly_days_high_volume(mkt: SampleExperiment) -> None:
 def test_eco_age_vs_orders_positive_corr(eco: SampleExperiment) -> None:
     df = eco.user_data
     corr = df["user_age_days"].corr(df["n_prior_orders"])
-    assert corr > 0.20, f"corr(user_age_days, n_prior_orders) = {corr:.3f}, expected > 0.20"
+    assert (
+        corr > 0.20
+    ), f"corr(user_age_days, n_prior_orders) = {corr:.3f}, expected > 0.20"
 
 
 def test_saas_company_size_vs_usage_positive_corr(saas: SampleExperiment) -> None:
@@ -189,7 +197,9 @@ def test_saas_company_size_vs_usage_positive_corr(saas: SampleExperiment) -> Non
 def test_mkt_tenure_vs_rating_positive_corr(mkt: SampleExperiment) -> None:
     df = mkt.user_data
     corr = df["seller_tenure_days"].corr(df["avg_rating"])
-    assert corr > 0.20, f"corr(seller_tenure_days, avg_rating) = {corr:.3f}, expected > 0.20"
+    assert (
+        corr > 0.20
+    ), f"corr(seller_tenure_days, avg_rating) = {corr:.3f}, expected > 0.20"
 
 
 # ---------------------------------------------------------------------------
@@ -202,25 +212,25 @@ def test_eco_srm_detected(eco: SampleExperiment) -> None:
     checks = anomaly.get("checks", [])
     srm = next((c for c in checks if c["name"] == "srm_check"), None)
     assert srm is not None, "srm_check missing from anomaly checks"
-    assert not srm["passed"], (
-        f"SRM check unexpectedly passed (p={srm['score']:.4f}) for 55/45 split"
-    )
+    assert not srm[
+        "passed"
+    ], f"SRM check unexpectedly passed (p={srm['score']:.4f}) for 55/45 split"
 
 
 def test_eco_novelty_pattern(eco: SampleExperiment) -> None:
     novelty = eco.precomputed_result["ml_result"].get("novelty", {})
-    assert novelty.get("pattern") == "NOVELTY", (
-        f"Expected NOVELTY pattern, got {novelty.get('pattern')}"
-    )
+    assert (
+        novelty.get("pattern") == "NOVELTY"
+    ), f"Expected NOVELTY pattern, got {novelty.get('pattern')}"
 
 
 def test_eco_hte_device_type(eco: SampleExperiment) -> None:
     hte = eco.precomputed_result["ml_result"].get("hte", {})
     top = hte.get("top_interactions", [])
     assert top, "HTE top_interactions is empty"
-    assert "device_type" in top[0], (
-        f"Expected device_type as #1 HTE modifier, got: {top[:3]}"
-    )
+    assert (
+        "device_type" in top[0]
+    ), f"Expected device_type as #1 HTE modifier, got: {top[:3]}"
 
 
 # ---------------------------------------------------------------------------
@@ -233,30 +243,33 @@ def test_saas_no_srm(saas: SampleExperiment) -> None:
     checks = anomaly.get("checks", [])
     srm = next((c for c in checks if c["name"] == "srm_check"), None)
     if srm is not None:
-        assert srm["passed"], f"Unexpected SRM in clean 50/50 experiment (p={srm['score']:.4f})"
+        assert srm[
+            "passed"
+        ], f"Unexpected SRM in clean 50/50 experiment (p={srm['score']:.4f})"
 
 
 def test_saas_stable_novelty(saas: SampleExperiment) -> None:
     novelty = saas.precomputed_result["ml_result"].get("novelty", {})
-    assert novelty.get("pattern") == "STABLE", (
-        f"Expected STABLE novelty, got {novelty.get('pattern')}"
-    )
+    assert (
+        novelty.get("pattern") == "STABLE"
+    ), f"Expected STABLE novelty, got {novelty.get('pattern')}"
 
 
 def test_saas_hte_company_size(saas: SampleExperiment) -> None:
     hte = saas.precomputed_result["ml_result"].get("hte", {})
     top = hte.get("top_interactions", [])
     assert top, "HTE top_interactions is empty for saas_trial"
-    assert "company_size" in top[0], (
-        f"Expected company_size as #1 HTE modifier, got: {top[:3]}"
-    )
+    assert (
+        "company_size" in top[0]
+    ), f"Expected company_size as #1 HTE modifier, got: {top[:3]}"
 
 
 def test_saas_overall_verdict_clean(saas: SampleExperiment) -> None:
     verdict = saas.precomputed_result["ml_result"]["overall_verdict"]
-    assert verdict in ("CLEAN", "NEEDS_REVIEW"), (
-        f"Unexpected verdict for clean experiment: {verdict}"
-    )
+    assert verdict in (
+        "CLEAN",
+        "NEEDS_REVIEW",
+    ), f"Unexpected verdict for clean experiment: {verdict}"
     # Must NOT be INVALID
     assert verdict != "INVALID"
 
@@ -275,18 +288,19 @@ def test_mkt_anomaly_detected(mkt: SampleExperiment) -> None:
 def test_mkt_outlier_or_volume_spike(mkt: SampleExperiment) -> None:
     anomaly = mkt.precomputed_result["ml_result"].get("anomaly", {})
     failed_names = {c["name"] for c in anomaly.get("checks", []) if not c["passed"]}
-    assert failed_names & {"outlier_days", "volume_spike"}, (
-        f"Expected outlier_days or volume_spike to fail; failed: {failed_names}"
-    )
+    assert failed_names & {
+        "outlier_days",
+        "volume_spike",
+    }, f"Expected outlier_days or volume_spike to fail; failed: {failed_names}"
 
 
 def test_mkt_hte_seller_tenure(mkt: SampleExperiment) -> None:
     hte = mkt.precomputed_result["ml_result"].get("hte", {})
     top = hte.get("top_interactions", [])
     assert top, "HTE top_interactions is empty for marketplace_fee"
-    assert "seller_tenure_days" in top[0], (
-        f"Expected seller_tenure_days as #1 HTE modifier, got: {top[:3]}"
-    )
+    assert (
+        "seller_tenure_days" in top[0]
+    ), f"Expected seller_tenure_days as #1 HTE modifier, got: {top[:3]}"
 
 
 def test_mkt_established_sellers_positive_hte(mkt: SampleExperiment) -> None:
@@ -294,11 +308,17 @@ def test_mkt_established_sellers_positive_hte(mkt: SampleExperiment) -> None:
     df = mkt.user_data
     est = df[df["seller_tenure_days"] > 180]
     new = df[df["seller_tenure_days"] <= 180]
-    est_ate = est[est.treatment == 1]["outcome"].mean() - est[est.treatment == 0]["outcome"].mean()
-    new_ate = new[new.treatment == 1]["outcome"].mean() - new[new.treatment == 0]["outcome"].mean()
-    assert est_ate > new_ate, (
-        f"Established ATE ({est_ate:.2f}) should exceed new-seller ATE ({new_ate:.2f})"
+    est_ate = (
+        est[est.treatment == 1]["outcome"].mean()
+        - est[est.treatment == 0]["outcome"].mean()
     )
+    new_ate = (
+        new[new.treatment == 1]["outcome"].mean()
+        - new[new.treatment == 0]["outcome"].mean()
+    )
+    assert (
+        est_ate > new_ate
+    ), f"Established ATE ({est_ate:.2f}) should exceed new-seller ATE ({new_ate:.2f})"
 
 
 # ---------------------------------------------------------------------------
@@ -335,6 +355,7 @@ async def test_seeder_idempotent() -> None:
     def _add(obj: object) -> None:
         nonlocal insert_count
         from app.models.experiment import Experiment
+
         if isinstance(obj, Experiment):
             insert_count += 1
 
@@ -346,6 +367,7 @@ async def test_seeder_idempotent() -> None:
         # Return a minimal mock SampleExperiment for each name
         def _make_sample(name: str) -> SampleExperiment:
             import pandas as pd
+
             return SampleExperiment(
                 user_data=pd.DataFrame(),
                 daily_data=pd.DataFrame(),

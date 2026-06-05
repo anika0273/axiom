@@ -36,21 +36,25 @@ def _make_input(
 
     features: pd.DataFrame | None = None
     if with_features:
-        features = pd.DataFrame({
-            "x0": rng.standard_normal(n_ctrl + n_trt),
-            "x1": rng.standard_normal(n_ctrl + n_trt),
-        })
+        features = pd.DataFrame(
+            {
+                "x0": rng.standard_normal(n_ctrl + n_trt),
+                "x1": rng.standard_normal(n_ctrl + n_trt),
+            }
+        )
 
     daily: pd.DataFrame | None = None
     if with_daily and n_days > 0:
         dates = pd.date_range("2024-01-01", periods=n_days, freq="D")
-        daily = pd.DataFrame({
-            "date": dates,
-            "control_metric": rng.normal(0.30, 0.01, n_days),
-            "treatment_metric": rng.normal(0.35, 0.01, n_days),
-            "n_control": rng.integers(450, 550, n_days).astype(float),
-            "n_treatment": rng.integers(450, 550, n_days).astype(float),
-        })
+        daily = pd.DataFrame(
+            {
+                "date": dates,
+                "control_metric": rng.normal(0.30, 0.01, n_days),
+                "treatment_metric": rng.normal(0.35, 0.01, n_days),
+                "n_control": rng.integers(450, 550, n_days).astype(float),
+                "n_treatment": rng.integers(450, 550, n_days).astype(float),
+            }
+        )
 
     return MLExperimentInput(
         control_values=ctrl,
@@ -122,7 +126,9 @@ class TestFullInput:
     def test_all_modules_completed_on_full_data(self) -> None:
         result = run_ml_analysis(_make_input())
         for s in result.capability_report:
-            assert s.status == "completed", f"Module {s.module} did not complete: {s.status}"
+            assert (
+                s.status == "completed"
+            ), f"Module {s.module} did not complete: {s.status}"
 
     def test_anomaly_result_populated(self) -> None:
         result = run_ml_analysis(_make_input())
@@ -246,7 +252,10 @@ class TestNoOptionalData:
 
     def test_recommendation_mentions_insufficient(self) -> None:
         result = run_ml_analysis(_minimal_input())
-        assert "Insufficient" in result.recommendation or "data" in result.recommendation.lower()
+        assert (
+            "Insufficient" in result.recommendation
+            or "data" in result.recommendation.lower()
+        )
 
     def test_still_has_four_capability_entries(self) -> None:
         result = run_ml_analysis(_minimal_input())
@@ -261,27 +270,33 @@ class TestNoOptionalData:
 def test_raises_when_control_too_small() -> None:
     rng = np.random.default_rng(0)
     with pytest.raises(ValueError, match="10 users"):
-        run_ml_analysis(MLExperimentInput(
-            control_values=rng.standard_normal(5).tolist(),
-            treatment_values=rng.standard_normal(20).tolist(),
-        ))
+        run_ml_analysis(
+            MLExperimentInput(
+                control_values=rng.standard_normal(5).tolist(),
+                treatment_values=rng.standard_normal(20).tolist(),
+            )
+        )
 
 
 def test_raises_when_treatment_too_small() -> None:
     rng = np.random.default_rng(0)
     with pytest.raises(ValueError, match="10 users"):
-        run_ml_analysis(MLExperimentInput(
-            control_values=rng.standard_normal(20).tolist(),
-            treatment_values=rng.standard_normal(3).tolist(),
-        ))
+        run_ml_analysis(
+            MLExperimentInput(
+                control_values=rng.standard_normal(20).tolist(),
+                treatment_values=rng.standard_normal(3).tolist(),
+            )
+        )
 
 
 def test_exactly_10_per_group_does_not_raise() -> None:
     rng = np.random.default_rng(0)
-    result = run_ml_analysis(MLExperimentInput(
-        control_values=rng.standard_normal(10).tolist(),
-        treatment_values=rng.standard_normal(10).tolist(),
-    ))
+    result = run_ml_analysis(
+        MLExperimentInput(
+            control_values=rng.standard_normal(10).tolist(),
+            treatment_values=rng.standard_normal(10).tolist(),
+        )
+    )
     assert isinstance(result, MLAnalysisResult)
 
 
@@ -293,27 +308,35 @@ def test_exactly_10_per_group_does_not_raise() -> None:
 class TestFaultIsolation:
     def test_anomaly_failure_does_not_crash(self) -> None:
         inp = _make_input(with_features=False)  # skip HTE/segments for speed
-        with patch("app.ml.engine.validate_experiment", side_effect=RuntimeError("injected")):
+        with patch(
+            "app.ml.engine.validate_experiment", side_effect=RuntimeError("injected")
+        ):
             result = run_ml_analysis(inp)
         assert isinstance(result, MLAnalysisResult)
 
     def test_anomaly_failure_recorded_as_failed(self) -> None:
         inp = _make_input(with_features=False)
-        with patch("app.ml.engine.validate_experiment", side_effect=RuntimeError("injected")):
+        with patch(
+            "app.ml.engine.validate_experiment", side_effect=RuntimeError("injected")
+        ):
             result = run_ml_analysis(inp)
         anom = next(s for s in result.capability_report if s.module == "anomaly")
         assert anom.status == "failed"
 
     def test_anomaly_failure_records_exception_message(self) -> None:
         inp = _make_input(with_features=False)
-        with patch("app.ml.engine.validate_experiment", side_effect=RuntimeError("injected")):
+        with patch(
+            "app.ml.engine.validate_experiment", side_effect=RuntimeError("injected")
+        ):
             result = run_ml_analysis(inp)
         anom = next(s for s in result.capability_report if s.module == "anomaly")
         assert anom.skip_reason is not None and "injected" in anom.skip_reason
 
     def test_novelty_failure_others_still_complete(self) -> None:
         inp = _make_input(with_features=False)
-        with patch("app.ml.engine.analyze_effect_trajectory", side_effect=ValueError("boom")):
+        with patch(
+            "app.ml.engine.analyze_effect_trajectory", side_effect=ValueError("boom")
+        ):
             result = run_ml_analysis(inp)
         nov = next(s for s in result.capability_report if s.module == "novelty")
         anom = next(s for s in result.capability_report if s.module == "anomaly")
@@ -322,7 +345,9 @@ class TestFaultIsolation:
 
     def test_module_failure_triggers_needs_review(self) -> None:
         inp = _make_input(with_features=False)
-        with patch("app.ml.engine.validate_experiment", side_effect=RuntimeError("injected")):
+        with patch(
+            "app.ml.engine.validate_experiment", side_effect=RuntimeError("injected")
+        ):
             result = run_ml_analysis(inp)
         assert result.overall_verdict == "NEEDS_REVIEW"
 
@@ -348,16 +373,31 @@ class TestParallelExecution:
             patch("app.ml.engine.fit_hte_model") as mock_hte,
             patch("app.ml.engine.discover_segments") as mock_seg,
         ):
-            mock_hte.return_value = MagicMock(spec=["ate", "stability_score",
-                "top_interactions", "business_recommendation",
-                "ite_point", "ite_uncertainty"])
+            mock_hte.return_value = MagicMock(
+                spec=[
+                    "ate",
+                    "stability_score",
+                    "top_interactions",
+                    "business_recommendation",
+                    "ite_point",
+                    "ite_uncertainty",
+                ]
+            )
             mock_hte.return_value.top_interactions = ["x0_x_treat"]
             mock_hte.return_value.ate = 0.05
             mock_hte.return_value.stability_score = 0.9
             mock_hte.return_value.business_recommendation = "Target x0 users."
-            mock_seg.return_value = MagicMock(spec=["optimal_k", "silhouette_score",
-                "segments", "responsive_segments", "stability_scores",
-                "overall_recommendation", "low_confidence"])
+            mock_seg.return_value = MagicMock(
+                spec=[
+                    "optimal_k",
+                    "silhouette_score",
+                    "segments",
+                    "responsive_segments",
+                    "stability_scores",
+                    "overall_recommendation",
+                    "low_confidence",
+                ]
+            )
             mock_seg.return_value.responsive_segments = []
             mock_seg.return_value.optimal_k = 2
             mock_seg.return_value.overall_recommendation = "No clear segments."
@@ -415,33 +455,44 @@ class TestParallelExecution:
 class TestVerdictRules:
     def test_invalid_anomaly_gives_invalid_verdict(self) -> None:
         from app.ml.anomaly import ExperimentValidation, ValidationCheck
+
         invalid_validation = ExperimentValidation(
             overall_validity="INVALID",
-            checks=[ValidationCheck("srm_check", False, 0.001, "critical", "SRM", "Fix it")],
+            checks=[
+                ValidationCheck("srm_check", False, 0.001, "critical", "SRM", "Fix it")
+            ],
             recommendation="Do not trust these results. Investigate data pipeline before continuing.",
             can_trust_results=False,
         )
         inp = _make_input(with_features=False)
-        with patch("app.ml.engine.validate_experiment", return_value=invalid_validation):
+        with patch(
+            "app.ml.engine.validate_experiment", return_value=invalid_validation
+        ):
             result = run_ml_analysis(inp)
         assert result.overall_verdict == "INVALID"
         assert result.can_trust_results is False
 
     def test_invalid_verdict_gives_do_not_act_recommendation(self) -> None:
         from app.ml.anomaly import ExperimentValidation, ValidationCheck
+
         invalid_validation = ExperimentValidation(
             overall_validity="INVALID",
-            checks=[ValidationCheck("srm_check", False, 0.001, "critical", "SRM", "Fix it")],
+            checks=[
+                ValidationCheck("srm_check", False, 0.001, "critical", "SRM", "Fix it")
+            ],
             recommendation="Do not trust these results. Investigate data pipeline before continuing.",
             can_trust_results=False,
         )
         inp = _make_input(with_features=False)
-        with patch("app.ml.engine.validate_experiment", return_value=invalid_validation):
+        with patch(
+            "app.ml.engine.validate_experiment", return_value=invalid_validation
+        ):
             result = run_ml_analysis(inp)
         assert "Do not act" in result.recommendation
 
     def test_novelty_pattern_gives_needs_review(self) -> None:
         from app.ml.novelty import EffectTrajectory
+
         novelty_traj = EffectTrajectory(
             pattern="NOVELTY",
             slope=-0.008,
@@ -453,7 +504,9 @@ class TestVerdictRules:
             recommendation="Novelty effect detected. Wait 14 days for steady-state.",
         )
         inp = _make_input(with_features=False)
-        with patch("app.ml.engine.analyze_effect_trajectory", return_value=novelty_traj):
+        with patch(
+            "app.ml.engine.analyze_effect_trajectory", return_value=novelty_traj
+        ):
             result = run_ml_analysis(inp)
         assert result.overall_verdict == "NEEDS_REVIEW"
 
@@ -462,6 +515,7 @@ class TestVerdictRules:
         # Use mocked stable anomaly + stable novelty.
         from app.ml.anomaly import ExperimentValidation, ValidationCheck
         from app.ml.novelty import EffectTrajectory
+
         valid_anomaly = ExperimentValidation(
             overall_validity="VALID",
             checks=[ValidationCheck("srm_check", True, 0.8, "critical", "ok", "ok")],
@@ -481,7 +535,9 @@ class TestVerdictRules:
         inp = _make_input(with_features=False)
         with (
             patch("app.ml.engine.validate_experiment", return_value=valid_anomaly),
-            patch("app.ml.engine.analyze_effect_trajectory", return_value=stable_novelty),
+            patch(
+                "app.ml.engine.analyze_effect_trajectory", return_value=stable_novelty
+            ),
         ):
             result = run_ml_analysis(inp)
         assert result.overall_verdict == "CLEAN"

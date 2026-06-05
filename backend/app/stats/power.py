@@ -91,7 +91,10 @@ def _build_power_curve(
     n_hi = n_required * 2
     ns = np.linspace(n_lo, n_hi, 20, dtype=int)
     return [
-        {"n": float(n), "power": round(calculate_power(baseline_rate, mde, int(n), alpha), 4)}
+        {
+            "n": float(n),
+            "power": round(calculate_power(baseline_rate, mde, int(n), alpha), 4),
+        }
         for n in ns
     ]
 
@@ -200,7 +203,9 @@ def calculate_sample_size(
     if not (0.0 < baseline_rate < 1.0):
         raise ValueError(f"baseline_rate must be in (0, 1), got {baseline_rate}")
     if mde == 0.0:
-        raise ValueError("mde must be non-zero; a zero effect requires infinite samples.")
+        raise ValueError(
+            "mde must be non-zero; a zero effect requires infinite samples."
+        )
     treatment_rate = baseline_rate + mde
     if not (0.0 < treatment_rate < 1.0):
         raise ValueError(

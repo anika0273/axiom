@@ -29,41 +29,49 @@ from app.ml.anomaly import (
 def _clean_daily(n_days: int = 28, seed: int = 0) -> pd.DataFrame:
     """Balanced, stationary experiment with no anomalies."""
     rng = np.random.default_rng(seed)
-    return pd.DataFrame({
-        "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
-        "control_metric": rng.normal(0.30, 0.01, n_days),
-        "treatment_metric": rng.normal(0.33, 0.01, n_days),
-        "n_control": rng.integers(450, 550, n_days).astype(float),
-        "n_treatment": rng.integers(450, 550, n_days).astype(float),
-    })
+    return pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
+            "control_metric": rng.normal(0.30, 0.01, n_days),
+            "treatment_metric": rng.normal(0.33, 0.01, n_days),
+            "n_control": rng.integers(450, 550, n_days).astype(float),
+            "n_treatment": rng.integers(450, 550, n_days).astype(float),
+        }
+    )
 
 
 def _srm_daily(n_days: int = 28, seed: int = 1) -> pd.DataFrame:
     """60/40 assignment split (expected 50/50) → SRM."""
     rng = np.random.default_rng(seed)
-    return pd.DataFrame({
-        "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
-        "control_metric": rng.normal(0.30, 0.01, n_days),
-        "treatment_metric": rng.normal(0.30, 0.01, n_days),
-        "n_control": rng.integers(580, 620, n_days).astype(float),   # ~60%
-        "n_treatment": rng.integers(380, 420, n_days).astype(float),  # ~40%
-    })
+    return pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
+            "control_metric": rng.normal(0.30, 0.01, n_days),
+            "treatment_metric": rng.normal(0.30, 0.01, n_days),
+            "n_control": rng.integers(580, 620, n_days).astype(float),  # ~60%
+            "n_treatment": rng.integers(380, 420, n_days).astype(float),  # ~40%
+        }
+    )
 
 
-def _bot_attack_daily(n_days: int = 28, seed: int = 2, attack_day: int = 10) -> pd.DataFrame:
+def _bot_attack_daily(
+    n_days: int = 28, seed: int = 2, attack_day: int = 10
+) -> pd.DataFrame:
     """One day has 10× normal volume — bot flood."""
     rng = np.random.default_rng(seed)
     n_ctrl = rng.integers(450, 550, n_days).astype(float)
     n_trt = rng.integers(450, 550, n_days).astype(float)
     n_ctrl[attack_day] *= 10
     n_trt[attack_day] *= 10
-    return pd.DataFrame({
-        "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
-        "control_metric": rng.normal(0.30, 0.01, n_days),
-        "treatment_metric": rng.normal(0.30, 0.01, n_days),
-        "n_control": n_ctrl,
-        "n_treatment": n_trt,
-    })
+    return pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
+            "control_metric": rng.normal(0.30, 0.01, n_days),
+            "treatment_metric": rng.normal(0.30, 0.01, n_days),
+            "n_control": n_ctrl,
+            "n_treatment": n_trt,
+        }
+    )
 
 
 def _cusum_drift_daily(n_days: int = 28, seed: int = 3) -> pd.DataFrame:
@@ -74,13 +82,15 @@ def _cusum_drift_daily(n_days: int = 28, seed: int = 3) -> pd.DataFrame:
     # Inject a linear upward drift starting at day 10.
     for i in range(10, n_days):
         trt[i] += (i - 10) * 0.015
-    return pd.DataFrame({
-        "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
-        "control_metric": ctrl,
-        "treatment_metric": trt,
-        "n_control": rng.integers(450, 550, n_days).astype(float),
-        "n_treatment": rng.integers(450, 550, n_days).astype(float),
-    })
+    return pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
+            "control_metric": ctrl,
+            "treatment_metric": trt,
+            "n_control": rng.integers(450, 550, n_days).astype(float),
+            "n_treatment": rng.integers(450, 550, n_days).astype(float),
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -247,14 +257,18 @@ def test_cusum_drift_fires_on_injected_drift():
 def test_cusum_drift_score_above_threshold_on_drifted_data():
     df = _cusum_drift_daily()
     # Use explicit low threshold so the score check is threshold-independent.
-    check = check_cusum_drift(df["control_metric"], df["treatment_metric"], threshold=5.0)
+    check = check_cusum_drift(
+        df["control_metric"], df["treatment_metric"], threshold=5.0
+    )
     assert check.score > 5.0, f"Expected score > 5.0, got {check.score:.2f}"
 
 
 def test_cusum_critical_on_two_crossings():
     """Two crossings → critical severity."""
     df = _cusum_drift_daily()
-    check = check_cusum_drift(df["control_metric"], df["treatment_metric"], threshold=2.0)
+    check = check_cusum_drift(
+        df["control_metric"], df["treatment_metric"], threshold=2.0
+    )
     assert check.severity == "critical"
 
 
@@ -304,10 +318,10 @@ def test_all_checks_run_even_if_one_raises():
         result = validate_experiment(df)
 
     check_names = {c.name for c in result.checks}
-    assert "srm_check" in check_names       # error captured as a failed check
-    assert "outlier_days" in check_names    # still ran
-    assert "cusum_drift" in check_names     # still ran
-    assert "volume_spike" in check_names    # still ran
+    assert "srm_check" in check_names  # error captured as a failed check
+    assert "outlier_days" in check_names  # still ran
+    assert "cusum_drift" in check_names  # still ran
+    assert "volume_spike" in check_names  # still ran
     assert len(result.checks) == 4
 
 
@@ -432,17 +446,19 @@ def _srm_and_spike_daily(
 ) -> pd.DataFrame:
     """60/40 SRM split combined with a 10× volume spike on one day."""
     rng = np.random.default_rng(seed)
-    n_ctrl = rng.integers(580, 620, n_days).astype(float)   # ~60%
-    n_trt = rng.integers(380, 420, n_days).astype(float)    # ~40%
+    n_ctrl = rng.integers(580, 620, n_days).astype(float)  # ~60%
+    n_trt = rng.integers(380, 420, n_days).astype(float)  # ~40%
     n_ctrl[attack_day] *= 10
     n_trt[attack_day] *= 10
-    return pd.DataFrame({
-        "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
-        "control_metric": rng.normal(0.30, 0.01, n_days),
-        "treatment_metric": rng.normal(0.30, 0.01, n_days),
-        "n_control": n_ctrl,
-        "n_treatment": n_trt,
-    })
+    return pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", periods=n_days, freq="D"),
+            "control_metric": rng.normal(0.30, 0.01, n_days),
+            "treatment_metric": rng.normal(0.30, 0.01, n_days),
+            "n_control": n_ctrl,
+            "n_treatment": n_trt,
+        }
+    )
 
 
 def test_multiple_anomalies_result_is_invalid():
@@ -480,7 +496,10 @@ def test_warning_only_keeps_can_trust_true():
     """A WARNING-level failure with no critical failure must keep can_trust_results=True."""
     df = _clean_daily()
     warning_check = ValidationCheck(
-        "cusum_drift", False, 5.0, "warning",
+        "cusum_drift",
+        False,
+        5.0,
+        "warning",
         "One CUSUM crossing detected.",
         "Review timeline.",
     )

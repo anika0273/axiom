@@ -86,7 +86,9 @@ def _section_1(
         )
 
     if ml.novelty_pattern in ("NOVELTY", "LEARNING"):
-        pattern_word = "novelty effect" if ml.novelty_pattern == "NOVELTY" else "learning curve"
+        pattern_word = (
+            "novelty effect" if ml.novelty_pattern == "NOVELTY" else "learning curve"
+        )
         return (
             f"{fallback_note}"
             f"The {experiment_name} experiment showed a {stats.lift_pct:+.1f}% lift that "
@@ -96,7 +98,11 @@ def _section_1(
 
     direction = "increased" if stats.lift_pct > 0 else "decreased"
     verdict = ml.overall_verdict
-    qual = " — review the data quality concerns in section 6 before proceeding to full rollout" if verdict == "NEEDS_REVIEW" else ""
+    qual = (
+        " — review the data quality concerns in section 6 before proceeding to full rollout"
+        if verdict == "NEEDS_REVIEW"
+        else ""
+    )
     return (
         f"{fallback_note}"
         f"The {experiment_name} experiment {direction} the primary metric by "
@@ -203,14 +209,20 @@ def _section_5(ml: "MLAnalysisSummary") -> str:
     """Who It Worked For — segments and HTE, or explicit statement that none ran."""
     if ml.hte_top_modifier:
         modifier_clean = ml.hte_top_modifier.replace("_x_treat", "")
-        ate_str = f" (average treatment effect: {ml.hte_ate:+.4f})" if ml.hte_ate is not None else ""
-        rec = f" {ml.hte_business_recommendation}" if ml.hte_business_recommendation else ""
+        ate_str = (
+            f" (average treatment effect: {ml.hte_ate:+.4f})"
+            if ml.hte_ate is not None
+            else ""
+        )
+        rec = (
+            f" {ml.hte_business_recommendation}"
+            if ml.hte_business_recommendation
+            else ""
+        )
         segments_line = ""
         if ml.responsive_segments:
             n = len(ml.responsive_segments)
-            segments_line = (
-                f" Additionally, {n} user segment(s) showed above-average response to the treatment."
-            )
+            segments_line = f" Additionally, {n} user segment(s) showed above-average response to the treatment."
         return (
             f"The strongest treatment modifier was **{modifier_clean}**{ate_str}. "
             f"Treatment effects varied meaningfully across this dimension.{rec}{segments_line}"

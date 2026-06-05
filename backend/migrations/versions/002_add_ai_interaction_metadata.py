@@ -4,6 +4,7 @@ Revision ID: 002
 Revises: 001
 Create Date: 2026-05-05
 """
+
 from __future__ import annotations
 
 from typing import Sequence, Union
@@ -18,12 +19,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("ai_interactions", sa.Column("prompt_version", sa.Text, nullable=True))
-    op.add_column("ai_interactions", sa.Column("input_tokens", sa.Integer, nullable=True))
-    op.add_column("ai_interactions", sa.Column("output_tokens", sa.Integer, nullable=True))
-    op.add_column("ai_interactions", sa.Column("estimated_cost_usd", sa.Float, nullable=True))
+    op.add_column(
+        "ai_interactions", sa.Column("prompt_version", sa.Text, nullable=True)
+    )
+    op.add_column(
+        "ai_interactions", sa.Column("input_tokens", sa.Integer, nullable=True)
+    )
+    op.add_column(
+        "ai_interactions", sa.Column("output_tokens", sa.Integer, nullable=True)
+    )
+    op.add_column(
+        "ai_interactions", sa.Column("estimated_cost_usd", sa.Float, nullable=True)
+    )
     op.add_column("ai_interactions", sa.Column("confidence", sa.Text, nullable=True))
-    op.add_column("ai_interactions", sa.Column("duration_ms", sa.Integer, nullable=True))
+    op.add_column(
+        "ai_interactions", sa.Column("duration_ms", sa.Integer, nullable=True)
+    )
 
 
 def downgrade() -> None:

@@ -45,11 +45,16 @@ def _hte_body(n: int = 120, seed: int = 0) -> dict:
 def _segments_body(n_per_cluster: int = 80, seed: int = 1) -> dict:
     rng = np.random.default_rng(seed)
     features, treatment, outcome = [], [], []
-    for cluster_idx, (cx, cy, lift) in enumerate([(0, 0, 0.1), (5, 0, 0.7), (2.5, 5, 0.4)]):
+    for cluster_idx, (cx, cy, lift) in enumerate(
+        [(0, 0, 0.1), (5, 0, 0.7), (2.5, 5, 0.4)]
+    ):
         x0 = rng.normal(cx, 0.4, n_per_cluster).tolist()
         x1 = rng.normal(cy, 0.4, n_per_cluster).tolist()
         t = (rng.random(n_per_cluster) < 0.5).astype(float).tolist()
-        y = [x0[i] * 0.1 + t[i] * lift + rng.standard_normal() * 0.2 for i in range(n_per_cluster)]
+        y = [
+            x0[i] * 0.1 + t[i] * lift + rng.standard_normal() * 0.2
+            for i in range(n_per_cluster)
+        ]
         features += [{"x0": x0[i], "x1": x1[i]} for i in range(n_per_cluster)]
         treatment += t
         outcome += y
@@ -65,6 +70,7 @@ def _segments_body(n_per_cluster: int = 80, seed: int = 1) -> dict:
 def _validate_body(n_days: int = 21, seed: int = 2) -> dict:
     rng = np.random.default_rng(seed)
     import pandas as pd
+
     dates = pd.date_range("2024-01-01", periods=n_days, freq="D")
     return {
         "daily_metrics": [
@@ -98,8 +104,14 @@ class TestHTE:
 
     def test_data_fields_present(self, client: TestClient) -> None:
         data = client.post("/api/v1/ml/hte", json=_hte_body()).json()["data"]
-        for field in ("ate", "stability_score", "top_interactions",
-                      "business_recommendation", "ite_point", "ite_uncertainty"):
+        for field in (
+            "ate",
+            "stability_score",
+            "top_interactions",
+            "business_recommendation",
+            "ite_point",
+            "ite_uncertainty",
+        ):
             assert field in data, f"Missing field: {field}"
 
     def test_ite_point_length_matches_input(self, client: TestClient) -> None:
@@ -107,7 +119,9 @@ class TestHTE:
         data = client.post("/api/v1/ml/hte", json=body).json()["data"]
         assert len(data["ite_point"]) == 120
 
-    def test_ite_uncertainty_zeros_when_bootstrap_false(self, client: TestClient) -> None:
+    def test_ite_uncertainty_zeros_when_bootstrap_false(
+        self, client: TestClient
+    ) -> None:
         body = _hte_body()
         body["bootstrap"] = False
         data = client.post("/api/v1/ml/hte", json=body).json()["data"]
@@ -175,9 +189,15 @@ class TestSegments:
 
     def test_data_fields_present(self, client: TestClient) -> None:
         data = client.post("/api/v1/ml/segments", json=_segments_body()).json()["data"]
-        for field in ("optimal_k", "silhouette_score", "segments",
-                      "responsive_segments", "stability_scores",
-                      "overall_recommendation", "low_confidence"):
+        for field in (
+            "optimal_k",
+            "silhouette_score",
+            "segments",
+            "responsive_segments",
+            "stability_scores",
+            "overall_recommendation",
+            "low_confidence",
+        ):
             assert field in data, f"Missing field: {field}"
 
     def test_number_of_segments_equals_optimal_k(self, client: TestClient) -> None:
@@ -203,7 +223,9 @@ class TestSegments:
         data = client.post("/api/v1/ml/segments", json=_segments_body()).json()["data"]
         assert data["optimal_k"] == 3
 
-    def test_top_features_values_are_two_element_lists(self, client: TestClient) -> None:
+    def test_top_features_values_are_two_element_lists(
+        self, client: TestClient
+    ) -> None:
         data = client.post("/api/v1/ml/segments", json=_segments_body()).json()["data"]
         for seg in data["segments"]:
             for val in seg["top_features"].values():
@@ -254,7 +276,12 @@ class TestValidate:
 
     def test_data_fields_present(self, client: TestClient) -> None:
         data = client.post("/api/v1/ml/validate", json=_validate_body()).json()["data"]
-        for field in ("overall_validity", "checks", "recommendation", "can_trust_results"):
+        for field in (
+            "overall_validity",
+            "checks",
+            "recommendation",
+            "can_trust_results",
+        ):
             assert field in data, f"Missing field: {field}"
 
     def test_clean_data_is_valid(self, client: TestClient) -> None:
@@ -273,7 +300,14 @@ class TestValidate:
     def test_each_check_has_required_fields(self, client: TestClient) -> None:
         data = client.post("/api/v1/ml/validate", json=_validate_body()).json()["data"]
         for check in data["checks"]:
-            for field in ("name", "passed", "score", "severity", "description", "action"):
+            for field in (
+                "name",
+                "passed",
+                "score",
+                "severity",
+                "description",
+                "action",
+            ):
                 assert field in check, f"Check missing field {field}: {check}"
 
     def test_validity_is_one_of_three_values(self, client: TestClient) -> None:
@@ -293,6 +327,7 @@ class TestValidate:
         """60/40 assignment split should trigger SRM → INVALID."""
         rng = np.random.default_rng(5)
         import pandas as pd
+
         dates = pd.date_range("2024-01-01", periods=21, freq="D")
         body = {
             "daily_metrics": [
@@ -376,7 +411,7 @@ class FakeAsyncSession:
     """
 
     def __init__(self) -> None:
-        self._exps: dict = {}    # str(UUID) → Experiment
+        self._exps: dict = {}  # str(UUID) → Experiment
         self._results: dict = {}  # str(UUID) → ExperimentResult
 
     # ── Mutation helpers ──────────────────────────────────────────────────
@@ -549,7 +584,9 @@ class TestAnalyze:
 
     def test_response_fields_present(self, db_client) -> None:
         client, _ = db_client
-        data = client.post("/api/v1/ml/analyze", json=_analyze_body_minimal()).json()["data"]
+        data = client.post("/api/v1/ml/analyze", json=_analyze_body_minimal()).json()[
+            "data"
+        ]
         for field in (
             "overall_verdict",
             "key_insights",
@@ -561,13 +598,17 @@ class TestAnalyze:
 
     def test_verdict_is_valid_value(self, db_client) -> None:
         client, _ = db_client
-        data = client.post("/api/v1/ml/analyze", json=_analyze_body_minimal()).json()["data"]
+        data = client.post("/api/v1/ml/analyze", json=_analyze_body_minimal()).json()[
+            "data"
+        ]
         assert data["overall_verdict"] in {"CLEAN", "NEEDS_REVIEW", "INVALID"}
 
     def test_no_optional_fields_modules_skipped(self, db_client) -> None:
         """With no user_features or daily_metrics all four modules are skipped."""
         client, _ = db_client
-        data = client.post("/api/v1/ml/analyze", json=_analyze_body_minimal()).json()["data"]
+        data = client.post("/api/v1/ml/analyze", json=_analyze_body_minimal()).json()[
+            "data"
+        ]
         statuses = {s["module"]: s["status"] for s in data["capability_report"]}
         for module in ("hte", "segments", "anomaly", "novelty"):
             assert statuses[module] == "skipped", f"{module} should be skipped"
@@ -595,6 +636,7 @@ class TestAnalyze:
         """When experiment_id is provided the result_id is returned."""
         client, fake = db_client
         import uuid
+
         exp_id = str(uuid.uuid4())
         body = _analyze_body_minimal()
         body["experiment_id"] = exp_id
@@ -615,6 +657,7 @@ class TestGetExperimentAnalysis:
         """No stored result → 404."""
         client, _ = db_client
         import uuid
+
         r = client.get(f"/api/v1/ml/experiments/{uuid.uuid4()}/analysis")
         assert r.status_code == 404
 
@@ -622,6 +665,7 @@ class TestGetExperimentAnalysis:
         """After storing a result via analyze, the GET endpoint returns it."""
         client, fake = db_client
         import uuid
+
         exp_id = str(uuid.uuid4())
         body = _analyze_body_minimal()
         body["experiment_id"] = exp_id
@@ -654,24 +698,33 @@ class TestCreateExperiment:
 
     def test_returns_id(self, db_client) -> None:
         client, _ = db_client
-        data = client.post("/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY).json()["data"]
+        data = client.post("/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY).json()[
+            "data"
+        ]
         assert "id" in data
         import uuid
+
         uuid.UUID(data["id"])  # must be a valid UUID
 
     def test_status_is_draft(self, db_client) -> None:
         client, _ = db_client
-        data = client.post("/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY).json()["data"]
+        data = client.post("/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY).json()[
+            "data"
+        ]
         assert data["status"] == "draft"
 
     def test_experiment_type_echoed(self, db_client) -> None:
         client, _ = db_client
-        data = client.post("/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY).json()["data"]
+        data = client.post("/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY).json()[
+            "data"
+        ]
         assert data["experiment_type"] == "proportion"
 
     def test_missing_required_field_returns_422(self, db_client) -> None:
         client, _ = db_client
-        bad = {k: v for k, v in _EXPERIMENT_CREATE_BODY.items() if k != "baseline_metric"}
+        bad = {
+            k: v for k, v in _EXPERIMENT_CREATE_BODY.items() if k != "baseline_metric"
+        }
         r = client.post("/api/v1/experiments", json=bad)
         assert r.status_code == 422
 
@@ -691,12 +744,15 @@ class TestGetExperiment:
     def test_get_nonexistent_returns_404(self, db_client) -> None:
         client, _ = db_client
         import uuid
+
         r = client.get(f"/api/v1/experiments/{uuid.uuid4()}")
         assert r.status_code == 404
 
     def test_get_created_experiment(self, db_client) -> None:
         client, _ = db_client
-        created = client.post("/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY).json()["data"]
+        created = client.post(
+            "/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY
+        ).json()["data"]
         r = client.get(f"/api/v1/experiments/{created['id']}")
         assert r.status_code == 200
         assert r.json()["data"]["id"] == created["id"]
@@ -727,7 +783,9 @@ class TestGetExperiment:
 class TestUpdateStatus:
     def test_update_to_running(self, db_client) -> None:
         client, _ = db_client
-        created = client.post("/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY).json()["data"]
+        created = client.post(
+            "/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY
+        ).json()["data"]
         r = client.patch(
             f"/api/v1/experiments/{created['id']}/status",
             json={"status": "running"},
@@ -738,6 +796,7 @@ class TestUpdateStatus:
     def test_nonexistent_returns_404(self, db_client) -> None:
         client, _ = db_client
         import uuid
+
         r = client.patch(
             f"/api/v1/experiments/{uuid.uuid4()}/status",
             json={"status": "running"},
@@ -746,7 +805,9 @@ class TestUpdateStatus:
 
     def test_invalid_status_returns_422(self, db_client) -> None:
         client, _ = db_client
-        created = client.post("/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY).json()["data"]
+        created = client.post(
+            "/api/v1/experiments", json=_EXPERIMENT_CREATE_BODY
+        ).json()["data"]
         r = client.patch(
             f"/api/v1/experiments/{created['id']}/status",
             json={"status": "deleted"},
@@ -792,4 +853,8 @@ class TestRoundTrip:
         assert exp_r.status_code == 200
         exp_data = exp_r.json()["data"]
         assert exp_data["latest_result"] is not None
-        assert exp_data["latest_result"]["overall_verdict"] in {"CLEAN", "NEEDS_REVIEW", "INVALID"}
+        assert exp_data["latest_result"]["overall_verdict"] in {
+            "CLEAN",
+            "NEEDS_REVIEW",
+            "INVALID",
+        }

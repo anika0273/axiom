@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-05-02
 
 """
+
 from __future__ import annotations
 
 from typing import Sequence, Union
@@ -29,9 +30,7 @@ def upgrade() -> None:
     op.execute(
         "CREATE TYPE analysis_type AS ENUM ('full', 'sequential_check', 'interim')"
     )
-    op.execute(
-        "CREATE TYPE metric_type AS ENUM ('primary', 'secondary', 'guardrail')"
-    )
+    op.execute("CREATE TYPE metric_type AS ENUM ('primary', 'secondary', 'guardrail')")
     op.execute(
         "CREATE TYPE interaction_type AS ENUM ('plan', 'interpretation', 'report')"
     )
@@ -60,12 +59,8 @@ def upgrade() -> None:
         sa.Column("hypothesis", sa.Text(), nullable=True),
         sa.Column("baseline_metric", sa.Float(), nullable=False),
         sa.Column("mde", sa.Float(), nullable=False),
-        sa.Column(
-            "alpha", sa.Float(), nullable=False, server_default=sa.text("0.05")
-        ),
-        sa.Column(
-            "power", sa.Float(), nullable=False, server_default=sa.text("0.80")
-        ),
+        sa.Column("alpha", sa.Float(), nullable=False, server_default=sa.text("0.05")),
+        sa.Column("power", sa.Float(), nullable=False, server_default=sa.text("0.80")),
         sa.Column("daily_traffic_estimate", sa.Integer(), nullable=True),
         sa.Column(
             "created_at",

@@ -218,9 +218,9 @@ class TestCalculateMde:
                     continue
                 result = calculate_sample_size(baseline, target_mde, power=0.80)
                 recovered = calculate_mde(baseline, result.control_size, power=0.80)
-                assert recovered == pytest.approx(target_mde, rel=0.03), (
-                    f"Roundtrip failed for baseline={baseline}, mde={target_mde}"
-                )
+                assert recovered == pytest.approx(
+                    target_mde, rel=0.03
+                ), f"Roundtrip failed for baseline={baseline}, mde={target_mde}"
 
     def test_mde_decreases_with_larger_sample(self) -> None:
         """More data → smaller detectable effect."""

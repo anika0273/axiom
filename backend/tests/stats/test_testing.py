@@ -70,8 +70,10 @@ class TestRunProportionTest:
     def test_known_significant_case(self) -> None:
         """control=250/5000 (5%), treatment=320/5000 (6.4%) — clearly significant."""
         result = run_proportion_test(
-            control_successes=250, control_n=5000,
-            treatment_successes=320, treatment_n=5000,
+            control_successes=250,
+            control_n=5000,
+            treatment_successes=320,
+            treatment_n=5000,
         )
         assert result.is_significant is True
         assert result.p_value < 0.01
@@ -116,8 +118,10 @@ class TestRunProportionTest:
     def test_negative_lift_detected(self) -> None:
         """Swap control and treatment — should detect degradation."""
         result = run_proportion_test(
-            control_successes=320, control_n=5000,
-            treatment_successes=250, treatment_n=5000,
+            control_successes=320,
+            control_n=5000,
+            treatment_successes=250,
+            treatment_n=5000,
         )
         assert result.is_significant is True
         assert result.lift_abs < 0.0
@@ -212,7 +216,9 @@ class TestRunMeanTest:
         control, treatment = significant_means
         result = run_mean_test(control, treatment)
         lo, hi = result.confidence_interval
-        assert lo > 0.0, "CI lower bound should be positive for a large positive effect."
+        assert (
+            lo > 0.0
+        ), "CI lower bound should be positive for a large positive effect."
         assert hi > lo
 
     def test_ci_includes_zero_when_null(self, null_means) -> None:
@@ -268,8 +274,12 @@ class TestRunCupedProportionTest:
         CUPED should still detect significance."""
         cov_c, cov_t = cuped_data
         result = run_cuped_proportion_test(
-            control_successes=250, control_n=5000, control_covariates=cov_c,
-            treatment_successes=320, treatment_n=5000, treatment_covariates=cov_t,
+            control_successes=250,
+            control_n=5000,
+            control_covariates=cov_c,
+            treatment_successes=320,
+            treatment_n=5000,
+            treatment_covariates=cov_t,
         )
         assert result.is_significant is True
         assert result.p_value < 0.05
@@ -292,9 +302,9 @@ class TestRunCupedProportionTest:
         cov_c, cov_t = cuped_data
         unadjusted = run_proportion_test(250, 5000, 320, 5000)
         cuped = run_cuped_proportion_test(250, 5000, cov_c, 320, 5000, cov_t)
-        assert cuped.p_value <= unadjusted.p_value, (
-            "CUPED with positively correlated covariate should not inflate the p-value."
-        )
+        assert (
+            cuped.p_value <= unadjusted.p_value
+        ), "CUPED with positively correlated covariate should not inflate the p-value."
 
     def test_uncorrelated_covariate_warns(self, rng) -> None:
         """Uniform random covariate has ρ ≈ 0 — CUPED should warn."""
@@ -321,8 +331,12 @@ class TestRunCupedProportionTest:
     def test_invalid_covariate_n_raises(self) -> None:
         with pytest.raises(ValueError, match="treatment_n"):
             run_cuped_proportion_test(
-                10, 100, np.ones(100),
-                10, 0, np.ones(0),
+                10,
+                100,
+                np.ones(100),
+                10,
+                0,
+                np.ones(0),
             )
 
 

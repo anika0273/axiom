@@ -9,6 +9,7 @@ the async engine is always bound to the running test's event loop — avoids
 the classic asyncpg "attached to a different loop" error when pytest-asyncio
 assigns each test a new event loop (STRICT mode, function scope).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -48,6 +49,7 @@ def require_real_api_key() -> None:
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not key.startswith("sk-ant-"):
         pytest.skip("Real ANTHROPIC_API_KEY required — set it to run live AI tests")
+
 
 # ---------------------------------------------------------------------------
 # Paths

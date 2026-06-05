@@ -50,7 +50,9 @@ async def health(request: Request, response: Response) -> HealthResponse:
     """Return current health status and uptime."""
     start: float = getattr(request.app.state, "start_time", time.time())
     uptime = round(time.time() - start, 1)
-    return HealthResponse(data=HealthData(status="healthy", version="0.1.0", uptime=uptime))
+    return HealthResponse(
+        data=HealthData(status="healthy", version="0.1.0", uptime=uptime)
+    )
 
 
 @router.post(
@@ -74,7 +76,11 @@ async def get_sample_size(
     req_id = get_request_id(request)
     logger.info(
         "sample-size req=%s baseline=%.4f mde=%.4f alpha=%.3f power=%.2f",
-        req_id, body.baseline_rate, body.mde, body.alpha, body.power,
+        req_id,
+        body.baseline_rate,
+        body.mde,
+        body.alpha,
+        body.power,
     )
     try:
         result = engine.compute_sample_size(
@@ -120,7 +126,9 @@ async def get_runtime(
     req_id = get_request_id(request)
     logger.info(
         "runtime req=%s required_n=%d daily_traffic=%d",
-        req_id, body.required_sample_size, body.daily_traffic,
+        req_id,
+        body.required_sample_size,
+        body.daily_traffic,
     )
     try:
         result = engine.compute_runtime(
@@ -162,7 +170,10 @@ async def analyze(
     req_id = get_request_id(request)
     logger.info(
         "analyze req=%s test_type=%s control_n=%d treatment_n=%d",
-        req_id, body.config.test_type, body.data.control_n, body.data.treatment_n,
+        req_id,
+        body.config.test_type,
+        body.data.control_n,
+        body.data.treatment_n,
     )
 
     try:

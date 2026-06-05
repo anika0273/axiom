@@ -89,7 +89,11 @@ _CHECKOUT_TOOL_INPUT: dict[str, Any] = {
 _VAGUE_TOOL_INPUT: dict[str, Any] = {
     "experiment_name": "App Improvement Test",
     "hypothesis": "Unknown — clarification needed.",
-    "primary_metric": {"name": "unknown_metric", "type": "proportion", "baseline": None},
+    "primary_metric": {
+        "name": "unknown_metric",
+        "type": "proportion",
+        "baseline": None,
+    },
     "needs_clarification": True,
     "clarifying_questions": [
         "What specific user action or metric are you trying to improve?",
@@ -325,9 +329,9 @@ async def test_plan_sample_size_within_15pct_of_engine() -> None:
     assert plan_n is not None
 
     discrepancy = abs(plan_n - engine_n) / engine_n
-    assert discrepancy == 0.0, (
-        f"plan.sample_size_per_group ({plan_n}) should equal engine value ({engine_n})"
-    )
+    assert (
+        discrepancy == 0.0
+    ), f"plan.sample_size_per_group ({plan_n}) should equal engine value ({engine_n})"
 
 
 # ---------------------------------------------------------------------------
@@ -473,9 +477,11 @@ async def test_plan_logs_correct_prompt_version_value() -> None:
 
     fake_db = _FakeDB()
 
-    with patch("app.intelligence.planner.anthropic.AsyncAnthropic") as MockClient, \
-         patch("app.intelligence.planner.AIInteraction") as MockAI, \
-         patch("app.intelligence.planner.InteractionType"):
+    with (
+        patch("app.intelligence.planner.anthropic.AsyncAnthropic") as MockClient,
+        patch("app.intelligence.planner.AIInteraction") as MockAI,
+        patch("app.intelligence.planner.InteractionType"),
+    ):
         instance = MockClient.return_value
         instance.messages.create = AsyncMock(return_value=mock_response)
         MockAI.side_effect = lambda **kw: kw  # capture kwargs as a plain dict
@@ -623,6 +629,7 @@ def _make_api_app():
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
     from app.api.v1.intelligence import router
+
     app.include_router(router)
 
     # Override DB dependency to avoid real DB

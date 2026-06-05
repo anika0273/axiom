@@ -30,6 +30,7 @@ Failure diagnosis
 • Effect not preserved: theta applied asymmetrically to groups.
 • Negative variance reduction: sign error in theta adjustment.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -40,7 +41,7 @@ from tests.validation._report import record
 
 _MODULE = "cuped"
 _RNG_SEED = 42
-_VAR_TOL = 15.0   # ±15 pp tolerance on variance reduction (empirical vs theoretical)
+_VAR_TOL = 15.0  # ±15 pp tolerance on variance reduction (empirical vs theoretical)
 _EFFECT_TOL = 0.001  # treatment effect must be preserved within 0.001
 
 
@@ -75,15 +76,18 @@ def test_c1_high_correlation_variance_reduction() -> None:
     Theoretical reduction ≈ 83%.  Tolerance: ±15 pp absolute.
     """
     pre, post, assign = _generate_correlated_data(
-        n_ctrl=500, n_trt=500,
-        pre_mean=10.0, pre_std=2.0, noise_std=0.9,
+        n_ctrl=500,
+        n_trt=500,
+        pre_mean=10.0,
+        pre_std=2.0,
+        noise_std=0.9,
         treatment_effect=1.0,
         seed=_RNG_SEED,
     )
 
     result = apply_cuped(pre, post, assign)
     empirical_rho = abs(result.correlation_pre_post)
-    theoretical_reduction = empirical_rho ** 2 * 100.0
+    theoretical_reduction = empirical_rho**2 * 100.0
     actual_reduction = result.variance_reduction_pct
 
     delta = abs(actual_reduction - theoretical_reduction)
@@ -125,8 +129,11 @@ def test_c2_low_correlation_minimal_benefit() -> None:
     Theoretical reduction ≈ 1%.
     """
     pre, post, assign = _generate_correlated_data(
-        n_ctrl=400, n_trt=400,
-        pre_mean=5.0, pre_std=0.5, noise_std=5.0,
+        n_ctrl=400,
+        n_trt=400,
+        pre_mean=5.0,
+        pre_std=0.5,
+        noise_std=5.0,
         treatment_effect=0.5,
         seed=_RNG_SEED + 1,
     )
@@ -284,7 +291,9 @@ def test_c4_zero_correlation_graceful_degradation() -> None:
     )
 
     # Graceful degradation: theta near zero
-    assert result.theta is not None, "theta must be returned even for zero-correlation data."
+    assert (
+        result.theta is not None
+    ), "theta must be returned even for zero-correlation data."
     assert passed, (
         f"C4: reduction={reduction:.1f}%, |ρ|={rho:.3f} for independent data. "
         f"{likely}"

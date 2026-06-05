@@ -201,7 +201,11 @@ def _build_comparison_summary(
     f: CorrectionResult,
 ) -> str:
     """Build a summary string comparing the three correction results."""
-    methods = [("Bonferroni", b.n_rejected), ("Holm", h.n_rejected), ("BH", f.n_rejected)]
+    methods = [
+        ("Bonferroni", b.n_rejected),
+        ("Holm", h.n_rejected),
+        ("BH", f.n_rejected),
+    ]
     by_power = sorted(methods, key=lambda x: x[1], reverse=True)
     most_powerful = by_power[0]
     most_conservative = by_power[-1]

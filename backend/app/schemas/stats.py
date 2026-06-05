@@ -35,7 +35,9 @@ class SampleSizeRequest(BaseModel):
     @classmethod
     def _mde_nonzero(cls, v: float) -> float:
         if v == 0.0:
-            raise ValueError("mde must be non-zero; a zero effect requires infinite samples")
+            raise ValueError(
+                "mde must be non-zero; a zero effect requires infinite samples"
+            )
         return v
 
 
@@ -54,7 +56,9 @@ class AnalyzeConfigSchema(BaseModel):
     """Experiment-level configuration for a full-pipeline analysis."""
 
     alpha: float = Field(0.05, gt=0, lt=1, description="Two-tailed significance level")
-    power: float = Field(0.80, gt=0, lt=1, description="Target power for sample-size stage")
+    power: float = Field(
+        0.80, gt=0, lt=1, description="Target power for sample-size stage"
+    )
     test_type: Literal["proportion", "mean", "ratio"] = Field(
         "proportion", description="Which hypothesis test to run"
     )
@@ -247,7 +251,9 @@ def analysis_to_response(analysis: object) -> AnalyzeResponse:  # type: ignore[t
         total_sample_size=ss.total_sample_size,
         cohens_d=ss.cohens_d,
         method_used=ss.method_used,
-        power_curve=[PowerCurvePoint(n=p["n"], power=p["power"]) for p in ss.power_curve],
+        power_curve=[
+            PowerCurvePoint(n=p["n"], power=p["power"]) for p in ss.power_curve
+        ],
     )
 
     sequential = None

@@ -54,7 +54,9 @@ class HTERequest(BaseModel):
             "for real-time API use.  Enable for offline analysis."
         ),
     )
-    n_bootstrap: int = Field(100, ge=10, le=500, description="Bootstrap resamples when bootstrap=True.")
+    n_bootstrap: int = Field(
+        100, ge=10, le=500, description="Bootstrap resamples when bootstrap=True."
+    )
 
     @model_validator(mode="after")
     def _lengths_match(self) -> "HTERequest":
@@ -78,10 +80,18 @@ class HTERequest(BaseModel):
 class HTEData(BaseModel):
     """Payload inside a successful HTE response."""
 
-    ate: float = Field(..., description="Average treatment effect (lift_abs from the stats engine).")
-    stability_score: float = Field(..., description="Mean pairwise ITE correlation across three refits (0–1).")
-    top_interactions: list[str] = Field(..., description="Interaction features ranked by mean |SHAP|.")
-    business_recommendation: str = Field(..., description="Plain-language targeting recommendation.")
+    ate: float = Field(
+        ..., description="Average treatment effect (lift_abs from the stats engine)."
+    )
+    stability_score: float = Field(
+        ..., description="Mean pairwise ITE correlation across three refits (0–1)."
+    )
+    top_interactions: list[str] = Field(
+        ..., description="Interaction features ranked by mean |SHAP|."
+    )
+    business_recommendation: str = Field(
+        ..., description="Plain-language targeting recommendation."
+    )
     ite_point: list[float] = Field(..., description="Per-subject ITE point estimates.")
     ite_uncertainty: list[float] = Field(
         ...,
@@ -109,7 +119,9 @@ class SegmentsRequest(BaseModel):
     )
     treatment: list[float] = Field(..., min_length=1)
     outcome: list[float] = Field(..., min_length=1)
-    max_k: int = Field(8, ge=2, le=20, description="Maximum number of clusters to evaluate.")
+    max_k: int = Field(
+        8, ge=2, le=20, description="Maximum number of clusters to evaluate."
+    )
     random_state: int = Field(42)
 
     @model_validator(mode="after")

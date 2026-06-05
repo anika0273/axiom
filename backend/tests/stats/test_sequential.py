@@ -65,7 +65,7 @@ class TestComputeOBFBoundaries:
         assert b10.z_boundary_per_look[0] > 3.5
 
     def test_early_look_exact_value(self, b10: SequentialBoundaries) -> None:
-        expected = norm.ppf(0.975) / 0.1 ** 0.5
+        expected = norm.ppf(0.975) / 0.1**0.5
         assert b10.z_boundary_per_look[0] == pytest.approx(expected, rel=1e-6)
 
     def test_final_look_below_two(self, b10: SequentialBoundaries) -> None:
@@ -126,7 +126,9 @@ class TestComputeOBFBoundaries:
         self, b10: SequentialBoundaries, b10_one_sided: SequentialBoundaries
     ) -> None:
         """One-sided z_α < two-sided z_{α/2} at every look."""
-        for z_two, z_one in zip(b10.z_boundary_per_look, b10_one_sided.z_boundary_per_look):
+        for z_two, z_one in zip(
+            b10.z_boundary_per_look, b10_one_sided.z_boundary_per_look
+        ):
             assert z_one < z_two
 
     def test_futility_boundaries_strictly_increasing(
@@ -139,7 +141,7 @@ class TestComputeOBFBoundaries:
 
     def test_futility_boundary_at_t01(self, b10: SequentialBoundaries) -> None:
         # z_f(0.1) = (1.95996 − 0.842) · √0.1 ≈ 0.354
-        expected = (norm.ppf(0.975) - norm.ppf(0.80)) * 0.1 ** 0.5
+        expected = (norm.ppf(0.975) - norm.ppf(0.80)) * 0.1**0.5
         assert b10.futility_boundaries[0] == pytest.approx(expected, rel=1e-5)
 
     def test_stored_parameters_match_inputs(self) -> None:
@@ -273,7 +275,7 @@ class TestEvaluateInterimLook:
     def test_required_z_matches_obf_formula(self, b10: SequentialBoundaries) -> None:
         """required_z = z_{α/2} / √t at the current info fraction."""
         decision = evaluate_interim_look(2.0, 500, b10)
-        expected = norm.ppf(0.975) / 0.5 ** 0.5
+        expected = norm.ppf(0.975) / 0.5**0.5
         assert decision.required_z == pytest.approx(expected, rel=1e-4)
 
     def test_required_z_at_final_look(self, b10: SequentialBoundaries) -> None:
@@ -377,21 +379,19 @@ class TestOBFMathematicalProperties:
         self, b10: SequentialBoundaries
     ) -> None:
         """required_z from evaluate_interim_look must match precomputed z for exact looks."""
-        for t, z_pre in zip(
-            b10.info_fraction_per_look, b10.z_boundary_per_look
-        ):
+        for t, z_pre in zip(b10.info_fraction_per_look, b10.z_boundary_per_look):
             n = round(t * b10.total_planned_n)
             d = evaluate_interim_look(0.0, n, b10)
-            assert d.required_z == pytest.approx(z_pre, rel=1e-4), (
-                f"Mismatch at t={t}: precomputed={z_pre:.4f}, evaluated={d.required_z:.4f}"
-            )
+            assert d.required_z == pytest.approx(
+                z_pre, rel=1e-4
+            ), f"Mismatch at t={t}: precomputed={z_pre:.4f}, evaluated={d.required_z:.4f}"
 
     def test_futility_boundary_formula(self, b10: SequentialBoundaries) -> None:
         """Verify futility_boundaries match the closed-form formula."""
         z_crit = norm.ppf(0.975)
         z_beta = norm.ppf(0.80)
         for t, z_f in zip(b10.info_fraction_per_look, b10.futility_boundaries):
-            expected = max(0.0, (z_crit - z_beta) * t ** 0.5)
+            expected = max(0.0, (z_crit - z_beta) * t**0.5)
             assert z_f == pytest.approx(expected, rel=1e-5)
 
     def test_just_above_futility_is_continue(self, b10: SequentialBoundaries) -> None:

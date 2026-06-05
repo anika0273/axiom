@@ -25,6 +25,7 @@ Failure diagnosis
 • If SE_naive < SE_delta on heavy-tail data → naive SE underestimates
   variance when denominator is variable; flag this as the expected result.
 """
+
 from __future__ import annotations
 
 import math
@@ -80,9 +81,12 @@ def test_r1_standard_revenue_per_session() -> None:
     d_var_t = abs(obs_var_t - ref_var_t)
 
     passed = (
-        d_ratio_c <= _TOL and d_var_c <= _TOL
-        and d_ratio_t <= _TOL and d_var_t <= _TOL
-        and obs_var_c > 0 and obs_var_t > 0
+        d_ratio_c <= _TOL
+        and d_var_c <= _TOL
+        and d_ratio_t <= _TOL
+        and d_var_t <= _TOL
+        and obs_var_c > 0
+        and obs_var_t > 0
     )
 
     likely = ""
@@ -162,8 +166,10 @@ def test_r2_heavy_tail_delta_vs_naive() -> None:
         scenario="R2: Pareto sessions (heavy tail), delta vs naive SE",
         expected="delta_se > 0, finite; naive_se ≥ delta_se (expected pattern)",
         observed=f"delta_se={delta_se:.4f}, naive_se={naive_se:.4f}, "
-                 f"naive_larger={naive_larger}",
-        delta=f"naive/delta ratio = {naive_se/delta_se:.2f}x" if delta_se > 0 else "n/a",
+        f"naive_larger={naive_larger}",
+        delta=(
+            f"naive/delta ratio = {naive_se/delta_se:.2f}x" if delta_se > 0 else "n/a"
+        ),
         tolerance="delta_se > 0 and finite (hard); naive≥delta (expected pattern only)",
         passed=passed_finite,
         likely_cause="" if passed_finite else "delta_var ≤ 0 — sign error in formula.",

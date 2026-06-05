@@ -129,6 +129,7 @@ class _MockStream:
         async def _gen():
             for chunk in self._chunks:
                 yield chunk
+
         return _gen()
 
     async def get_final_message(self) -> MagicMock:
@@ -185,7 +186,9 @@ async def test_interpret_results_yields_chunks():
     chunks = ["The ", "treatment ", "increased ", "conversion ", "by 31.4%."]
     with _patch_stream(chunks):
         received = []
-        async for chunk in interpret_results(_sig_stats(), _clean_ml(), "Test Experiment"):
+        async for chunk in interpret_results(
+            _sig_stats(), _clean_ml(), "Test Experiment"
+        ):
             received.append(chunk)
 
     assert received == chunks
@@ -231,14 +234,19 @@ async def test_nonsig_result_does_not_recommend_ship():
     ]
     with _patch_stream(chunks):
         assembled = []
-        async for chunk in interpret_results(_nonsig_stats(), _clean_ml(), "Button Color Test"):
+        async for chunk in interpret_results(
+            _nonsig_stats(), _clean_ml(), "Button Color Test"
+        ):
             assembled.append(chunk)
 
     text = "".join(assembled)
     # Must not recommend bare SHIP as the action (DO_NOT_SHIP is fine)
-    assert "DO_NOT_SHIP" in text or "do not" in text.lower() or "ship" not in text.lower()
+    assert (
+        "DO_NOT_SHIP" in text or "do not" in text.lower() or "ship" not in text.lower()
+    )
     # Crucially: bare "SHIP" (as an action recommendation) should not appear
     import re
+
     # "SHIP" that is NOT preceded by "DO_NOT_" or "not "
     bare_ship = re.search(r"(?<![_\w])SHIP(?![\w])", text)
     do_not_ship = "DO_NOT_SHIP" in text or "do_not_ship" in text.lower()
@@ -254,7 +262,9 @@ async def test_invalid_experiment_mentions_validity():
     ]
     with _patch_stream(chunks):
         assembled = []
-        async for chunk in interpret_results(_sig_stats(), _invalid_ml(), "Checkout Test"):
+        async for chunk in interpret_results(
+            _sig_stats(), _invalid_ml(), "Checkout Test"
+        ):
             assembled.append(chunk)
 
     text = "".join(assembled).lower()
@@ -283,7 +293,9 @@ async def test_novelty_result_recommends_extend():
     ]
     with _patch_stream(chunks):
         assembled = []
-        async for chunk in interpret_results(_sig_stats(), _novelty_ml(), "Homepage Redesign"):
+        async for chunk in interpret_results(
+            _sig_stats(), _novelty_ml(), "Homepage Redesign"
+        ):
             assembled.append(chunk)
 
     text = "".join(assembled).lower()
@@ -389,7 +401,10 @@ async def test_interpret_subgroup_fallback_on_error():
     mock_client = MagicMock()
     mock_client.messages.create = AsyncMock(side_effect=Exception("API unavailable"))
 
-    with patch("app.intelligence.interpreter.anthropic.AsyncAnthropic", return_value=mock_client):
+    with patch(
+        "app.intelligence.interpreter.anthropic.AsyncAnthropic",
+        return_value=mock_client,
+    ):
         result = await interpret_subgroup(segment_profile, "SaaS Trial")
 
     assert isinstance(result, str)
@@ -509,10 +524,7 @@ def test_parse_saas_trial_sample():
     import json
     from pathlib import Path
 
-    samples_dir = (
-        Path(__file__).parent.parent.parent
-        / "app" / "data" / "samples"
-    )
+    samples_dir = Path(__file__).parent.parent.parent / "app" / "data" / "samples"
     saas_path = samples_dir / "saas_trial.json"
     if not saas_path.exists():
         pytest.skip("saas_trial.json not found")
@@ -542,10 +554,7 @@ def test_fallback_with_saas_sample():
     import json
     from pathlib import Path
 
-    samples_dir = (
-        Path(__file__).parent.parent.parent
-        / "app" / "data" / "samples"
-    )
+    samples_dir = Path(__file__).parent.parent.parent / "app" / "data" / "samples"
     saas_path = samples_dir / "saas_trial.json"
     if not saas_path.exists():
         pytest.skip("saas_trial.json not found")

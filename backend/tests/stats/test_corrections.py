@@ -346,9 +346,9 @@ class TestCompareCorrections:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             comp = compare_corrections(ordering_p)
-        assert "1" in comp.summary   # Bonferroni: 1 rejection
-        assert "2" in comp.summary   # Holm: 2 rejections
-        assert "4" in comp.summary   # BH: 4 rejections
+        assert "1" in comp.summary  # Bonferroni: 1 rejection
+        assert "2" in comp.summary  # Holm: 2 rejections
+        assert "4" in comp.summary  # BH: 4 rejections
 
 
 # ---------------------------------------------------------------------------

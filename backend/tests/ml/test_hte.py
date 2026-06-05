@@ -52,12 +52,7 @@ def _make_synthetic(
         )
     else:
         # Flat treatment effect → no heterogeneity.
-        outcome = (
-            0.3 * x0
-            + 0.1 * x1
-            + treatment * 0.4
-            + rng.standard_normal(n) * 0.5
-        )
+        outcome = 0.3 * x0 + 0.1 * x1 + treatment * 0.4 + rng.standard_normal(n) * 0.5
 
     X = pd.DataFrame({"x0": x0, "x1": x1, "x2": x2})
     return X, pd.Series(treatment), pd.Series(outcome)
@@ -121,9 +116,9 @@ def test_known_interaction_recovered_as_top_modifier():
     """x0 drives treatment heterogeneity → x0_x_treat should be first."""
     X, t, y = _make_synthetic(n=800, seed=42, heterogeneity=True)
     model = fit_hte_model(X, t, y, random_state=42)
-    assert model.top_interactions[0] == "x0_x_treat", (
-        f"Expected x0_x_treat as top modifier, got {model.top_interactions[0]}"
-    )
+    assert (
+        model.top_interactions[0] == "x0_x_treat"
+    ), f"Expected x0_x_treat as top modifier, got {model.top_interactions[0]}"
 
 
 def test_ite_variance_is_higher_with_heterogeneity():
@@ -147,18 +142,18 @@ def test_low_heterogeneity_gives_lower_stability():
     s_het = fit_hte_model(X_het, t_het, y_het, random_state=1).stability_score
     s_hom = fit_hte_model(X_hom, t_hom, y_hom, random_state=1).stability_score
     # Heterogeneous data should be at least as stable as homogeneous.
-    assert s_het >= s_hom - 0.15, (
-        f"Expected heterogeneous stability ({s_het:.3f}) ≥ homogeneous ({s_hom:.3f}) - 0.15"
-    )
+    assert (
+        s_het >= s_hom - 0.15
+    ), f"Expected heterogeneous stability ({s_het:.3f}) ≥ homogeneous ({s_hom:.3f}) - 0.15"
 
 
 def test_stability_score_high_for_strong_signal():
     """Strong, consistent signal → stability close to 1."""
     X, t, y = _make_synthetic(n=1000, seed=0, heterogeneity=True)
     model = fit_hte_model(X, t, y, random_state=0)
-    assert model.stability_score > 0.5, (
-        f"Expected stability > 0.5 for strong heterogeneity, got {model.stability_score:.3f}"
-    )
+    assert (
+        model.stability_score > 0.5
+    ), f"Expected stability > 0.5 for strong heterogeneity, got {model.stability_score:.3f}"
 
 
 # ---------------------------------------------------------------------------
@@ -267,10 +262,12 @@ def test_raises_on_empty_input():
 def test_low_variance_features_are_dropped():
     rng = np.random.default_rng(10)
     n = 300
-    X = pd.DataFrame({
-        "good": rng.standard_normal(n),
-        "constant": np.zeros(n),
-    })
+    X = pd.DataFrame(
+        {
+            "good": rng.standard_normal(n),
+            "constant": np.zeros(n),
+        }
+    )
     t = pd.Series((rng.random(n) < 0.5).astype(float))
     y = pd.Series(rng.standard_normal(n))
     model = fit_hte_model(X, t, y)

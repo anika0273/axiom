@@ -156,7 +156,9 @@ def _fit_single(
     return model
 
 
-def _compute_ite(model: XGBRegressor, X: pd.DataFrame, treatment: pd.Series) -> np.ndarray:
+def _compute_ite(
+    model: XGBRegressor, X: pd.DataFrame, treatment: pd.Series
+) -> np.ndarray:
     """Estimate ITE as Y_hat(T=1, x) – Y_hat(T=0, x) for every subject.
 
     Args:

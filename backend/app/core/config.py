@@ -2,6 +2,7 @@
 
 All environment access happens here. No other module may read os.environ directly.
 """
+
 from __future__ import annotations
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

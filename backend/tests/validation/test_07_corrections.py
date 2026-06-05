@@ -33,6 +33,7 @@ Failure diagnosis
 • BH count wrong → step-up logic (largest k) or cummin-from-right missing.
 • reject_mask sign → strict < for Bonferroni/Holm, non-strict ≤ for BH.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -45,7 +46,7 @@ from app.stats.corrections import apply_multiple_correction, compare_corrections
 from tests.validation._report import record
 
 _MODULE = "corrections"
-_P_TOL = 0.001   # corrected p-value tolerance
+_P_TOL = 0.001  # corrected p-value tolerance
 _ALPHA = 0.05
 
 
@@ -54,10 +55,18 @@ _ALPHA = 0.05
 # ---------------------------------------------------------------------------
 
 
-def _statsmodels_ref(p_values: list[float], method: str) -> tuple[np.ndarray, np.ndarray]:
+def _statsmodels_ref(
+    p_values: list[float], method: str
+) -> tuple[np.ndarray, np.ndarray]:
     """Return (reject_mask, corrected_p) from statsmodels multipletests."""
-    sm_method = {"bonferroni": "bonferroni", "holm_bonferroni": "holm", "fdr_bh": "fdr_bh"}
-    reject, p_adj, _, _ = multipletests(p_values, alpha=_ALPHA, method=sm_method[method])
+    sm_method = {
+        "bonferroni": "bonferroni",
+        "holm_bonferroni": "holm",
+        "fdr_bh": "fdr_bh",
+    }
+    reject, p_adj, _, _ = multipletests(
+        p_values, alpha=_ALPHA, method=sm_method[method]
+    )
     return np.array(reject, dtype=bool), np.array(p_adj, dtype=float)
 
 
@@ -76,9 +85,9 @@ def test_cor1_known_answer_all_three() -> None:
 
     expected = {"bonferroni": 1, "holm_bonferroni": 2, "fdr_bh": 3}
     expected_masks = {
-        "bonferroni":     [True, False, False, False],
+        "bonferroni": [True, False, False, False],
         "holm_bonferroni": [True, True, False, False],
-        "fdr_bh":          [True, True, True, False],
+        "fdr_bh": [True, True, True, False],
     }
 
     all_pass = True
@@ -100,7 +109,9 @@ def test_cor1_known_answer_all_three() -> None:
             if method == "bonferroni":
                 likely = "Bonferroni threshold = α/n = 0.0125; only p[0]=0.008 passes."
             elif method == "holm_bonferroni":
-                likely = "Holm threshold at k=1 is α/(n−1) = 0.01667; p[1]=0.016 < 0.01667."
+                likely = (
+                    "Holm threshold at k=1 is α/(n−1) = 0.01667; p[1]=0.016 < 0.01667."
+                )
             else:
                 likely = "BH cummin-from-right: q[2]=0.040 ≤ 0.05, so k=2 is the largest reject."
 
@@ -115,8 +126,12 @@ def test_cor1_known_answer_all_three() -> None:
             likely_cause=likely,
         )
 
-        assert pass_n, f"COR1 {method}: expected {exp_n} rejections, got {obs_n}. {likely}"
-        assert pass_mask, f"COR1 {method}: expected mask {exp_mask}, got {obs_mask}. {likely}"
+        assert (
+            pass_n
+        ), f"COR1 {method}: expected {exp_n} rejections, got {obs_n}. {likely}"
+        assert (
+            pass_mask
+        ), f"COR1 {method}: expected mask {exp_mask}, got {obs_mask}. {likely}"
 
 
 def test_cor2_bh_more_powerful_than_bonferroni() -> None:
@@ -174,9 +189,15 @@ def test_cor3_holm_between_bonferroni_and_bh() -> None:
         warnings.simplefilter("ignore", UserWarning)
         bh_result = apply_multiple_correction(np.array(p_values), method="fdr_bh")
     bonf_result = apply_multiple_correction(np.array(p_values), method="bonferroni")
-    holm_result = apply_multiple_correction(np.array(p_values), method="holm_bonferroni")
+    holm_result = apply_multiple_correction(
+        np.array(p_values), method="holm_bonferroni"
+    )
 
-    n_b, n_h, n_bh = bonf_result.n_rejected, holm_result.n_rejected, bh_result.n_rejected
+    n_b, n_h, n_bh = (
+        bonf_result.n_rejected,
+        holm_result.n_rejected,
+        bh_result.n_rejected,
+    )
     passed = n_b <= n_h <= n_bh
 
     likely = ""
@@ -198,9 +219,9 @@ def test_cor3_holm_between_bonferroni_and_bh() -> None:
         likely_cause=likely,
     )
 
-    assert passed, (
-        f"COR3 power ordering: Bonferroni={n_b}, Holm={n_h}, BH={n_bh}. {likely}"
-    )
+    assert (
+        passed
+    ), f"COR3 power ordering: Bonferroni={n_b}, Holm={n_h}, BH={n_bh}. {likely}"
 
 
 def test_cor4_corrected_p_values_against_statsmodels() -> None:
@@ -246,9 +267,9 @@ def test_cor4_corrected_p_values_against_statsmodels() -> None:
             likely_cause=likely,
         )
 
-        assert passed, (
-            f"COR4 {method}: max_Δp={max_p_diff:.4e}, mask_diffs={mask_diff}. {likely}"
-        )
+        assert (
+            passed
+        ), f"COR4 {method}: max_Δp={max_p_diff:.4e}, mask_diffs={mask_diff}. {likely}"
 
 
 def test_cor5_single_test_no_correction() -> None:
@@ -283,4 +304,6 @@ def test_cor5_single_test_no_correction() -> None:
             likely_cause=likely,
         )
 
-        assert passed, f"COR5 {method}: single test corrected_p={obs_p} ≠ {p_single[0]}. {likely}"
+        assert (
+            passed
+        ), f"COR5 {method}: single test corrected_p={obs_p} ≠ {p_single[0]}. {likely}"

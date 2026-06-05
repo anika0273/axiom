@@ -28,7 +28,9 @@ from app.ml.segments import (
 # ---------------------------------------------------------------------------
 
 
-def _make_three_clusters(n_per_cluster: int = 200, seed: int = 0) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+def _make_three_clusters(
+    n_per_cluster: int = 200, seed: int = 0
+) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
     """Three well-separated clusters with distinct treatment responses."""
     rng = np.random.default_rng(seed)
 
@@ -54,7 +56,9 @@ def _make_three_clusters(n_per_cluster: int = 200, seed: int = 0) -> tuple[pd.Da
     return X, t, y
 
 
-def _make_random_noise(n: int = 300, seed: int = 7) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+def _make_random_noise(
+    n: int = 300, seed: int = 7
+) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
     """Standard Gaussian noise — no natural cluster structure."""
     rng = np.random.default_rng(seed)
     X = pd.DataFrame({"x0": rng.standard_normal(n), "x1": rng.standard_normal(n)})
@@ -123,9 +127,9 @@ def test_three_cluster_data_discovers_k_three():
     """Well-separated 3-cluster data should yield optimal_k == 3."""
     X, t, y = _make_three_clusters(n_per_cluster=250, seed=0)
     result = discover_segments(X, t, y, max_k=6)
-    assert result.optimal_k == 3, (
-        f"Expected k=3 for 3-cluster data, got {result.optimal_k}"
-    )
+    assert (
+        result.optimal_k == 3
+    ), f"Expected k=3 for 3-cluster data, got {result.optimal_k}"
 
 
 def test_three_cluster_silhouette_is_reasonable():
@@ -151,9 +155,9 @@ def test_stable_clusters_have_high_stability():
     X, t, y = _make_three_clusters(n_per_cluster=300, seed=1)
     result = discover_segments(X, t, y, max_k=6)
     for seg_id, score in result.stability_scores.items():
-        assert score > 0.8, (
-            f"Segment {seg_id} stability {score:.3f} expected > 0.8 for stable clusters"
-        )
+        assert (
+            score > 0.8
+        ), f"Segment {seg_id} stability {score:.3f} expected > 0.8 for stable clusters"
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +207,7 @@ def test_per_segment_significance_uses_stats_engine():
 
     with patch("app.ml.segments.run_mean_test") as mock_test:
         from app.stats.testing import TestResult
+
         mock_test.return_value = TestResult(
             is_significant=True,
             p_value=0.01,
@@ -224,9 +229,10 @@ def test_per_segment_significance_uses_stats_engine():
 def test_discover_segments_uses_stats_engine_for_per_segment_tests():
     """Full pipeline should invoke run_mean_test at least once per segment."""
     X, t, y = _make_three_clusters(n_per_cluster=100)
-    with patch("app.ml.segments.run_mean_test", wraps=__import__(
-        "app.stats.testing", fromlist=["run_mean_test"]
-    ).run_mean_test) as mock_test:
+    with patch(
+        "app.ml.segments.run_mean_test",
+        wraps=__import__("app.stats.testing", fromlist=["run_mean_test"]).run_mean_test,
+    ) as mock_test:
         result = discover_segments(X, t, y, max_k=4)
         # At minimum: one call per segment + one for overall ATE.
         assert mock_test.call_count >= result.optimal_k
@@ -259,9 +265,9 @@ def test_segment_descriptions_are_prose():
     X, t, y = _make_three_clusters()
     result = discover_segments(X, t, y)
     for seg in result.segments:
-        assert "cluster_" not in seg.description.lower(), (
-            f"Description should be human-readable, got: {seg.description}"
-        )
+        assert (
+            "cluster_" not in seg.description.lower()
+        ), f"Description should be human-readable, got: {seg.description}"
         assert len(seg.description) > 20
 
 
@@ -355,10 +361,12 @@ def test_top_features_returns_at_most_three():
 
 
 def test_top_features_highest_deviation_first():
-    X = pd.DataFrame({
-        "big": [10.0, 10.0, 10.0, 0.0, 0.0],  # large deviation in first 3
-        "small": [1.0, 1.0, 1.0, 1.0, 1.0],   # no deviation
-    })
+    X = pd.DataFrame(
+        {
+            "big": [10.0, 10.0, 10.0, 0.0, 0.0],  # large deviation in first 3
+            "small": [1.0, 1.0, 1.0, 1.0, 1.0],  # no deviation
+        }
+    )
     mask = np.array([True, True, True, False, False])
     result = _top_features_for_segment(X, mask, n_top=2)
     assert list(result.keys())[0] == "big"
@@ -526,6 +534,6 @@ def test_overall_recommendation_always_contains_ate_value():
 
     X, t, y = _make_three_clusters()
     result = discover_segments(X, t, y)
-    assert re.search(r"Overall ATE: [+-]?\d+\.\d+\.", result.overall_recommendation), (
-        f"Expected 'Overall ATE: ...' in recommendation, got: {result.overall_recommendation!r}"
-    )
+    assert re.search(
+        r"Overall ATE: [+-]?\d+\.\d+\.", result.overall_recommendation
+    ), f"Expected 'Overall ATE: ...' in recommendation, got: {result.overall_recommendation!r}"

@@ -25,7 +25,11 @@ from app.exceptions import (
     request_validation_exception_handler,
     unhandled_exception_handler,
 )
-from app.middleware import RequestIDMiddleware, SecurityHeadersMiddleware, TimingMiddleware
+from app.middleware import (
+    RequestIDMiddleware,
+    SecurityHeadersMiddleware,
+    TimingMiddleware,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +91,13 @@ def create_app() -> FastAPI:
         allow_credentials=False,  # credentials + wildcard origins is disallowed by spec
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["X-Request-ID", "X-Response-Time", "X-RateLimit-Limit",
-                        "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+        expose_headers=[
+            "X-Request-ID",
+            "X-Response-Time",
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-RateLimit-Reset",
+        ],
     )
 
     # ── Routers ────────────────────────────────────────────────────────────────
@@ -106,5 +115,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-
-

@@ -3,6 +3,7 @@
 Tests import ``record`` to add results; conftest calls ``write_report`` at
 session end.  The module-level ``_val_records`` list is the shared store.
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -15,12 +16,12 @@ from typing import Any
 class ValidationRecord:
     """One row in the validation report."""
 
-    module: str       # e.g. "sample_size"
-    scenario: str     # human label, e.g. "S1: canonical 5%→6%"
-    expected: str     # formatted expected value
-    observed: str     # formatted observed value
-    delta: str        # formatted discrepancy
-    tolerance: str    # stated tolerance
+    module: str  # e.g. "sample_size"
+    scenario: str  # human label, e.g. "S1: canonical 5%→6%"
+    expected: str  # formatted expected value
+    observed: str  # formatted observed value
+    delta: str  # formatted discrepancy
+    tolerance: str  # stated tolerance
     passed: bool
     likely_cause: str = ""  # filled only on failure
     notes: str = ""
@@ -65,13 +66,13 @@ def record(
 # ---------------------------------------------------------------------------
 
 _MODULE_NAMES: dict[str, str] = {
-    "sample_size":        "1. Sample Size",
-    "proportion_test":    "2. Two-Proportion Z-Test",
-    "mean_test":          "3. Mean Test (Welch t-test)",
-    "ratio_metric":       "4. Ratio Metric (Delta Method)",
-    "cuped":              "5. CUPED Variance Reduction",
-    "sequential":         "6. Sequential / O'Brien-Fleming",
-    "corrections":        "7. Multiple Comparison Corrections",
+    "sample_size": "1. Sample Size",
+    "proportion_test": "2. Two-Proportion Z-Test",
+    "mean_test": "3. Mean Test (Welch t-test)",
+    "ratio_metric": "4. Ratio Metric (Delta Method)",
+    "cuped": "5. CUPED Variance Reduction",
+    "sequential": "6. Sequential / O'Brien-Fleming",
+    "corrections": "7. Multiple Comparison Corrections",
     "engine_integration": "8. Engine Integration",
 }
 

@@ -126,26 +126,32 @@ class TestExperimentData:
     def test_negative_control_n_raises(self) -> None:
         with pytest.raises(ValueError):
             ExperimentData(
-                control_n=-1, treatment_n=100,
-                control_success=5, treatment_success=7,
+                control_n=-1,
+                treatment_n=100,
+                control_success=5,
+                treatment_success=7,
             )
 
     def test_zero_treatment_n_raises(self) -> None:
         with pytest.raises(ValueError):
             ExperimentData(
-                control_n=100, treatment_n=0,
-                control_success=5, treatment_success=7,
+                control_n=100,
+                treatment_n=0,
+                control_success=5,
+                treatment_success=7,
             )
 
     def test_valid_proportion_data(self) -> None:
-        d = ExperimentData(control_n=100, treatment_n=100,
-                           control_success=5, treatment_success=7)
+        d = ExperimentData(
+            control_n=100, treatment_n=100, control_success=5, treatment_success=7
+        )
         assert d.control_n == 100
         assert d.cuped_covariates is None
 
     def test_valid_mean_data(self) -> None:
         d = ExperimentData(
-            control_n=50, treatment_n=50,
+            control_n=50,
+            treatment_n=50,
             control_success=[1.0, 2.0] * 25,
             treatment_success=[1.5, 2.5] * 25,
         )
@@ -216,8 +222,10 @@ class TestProportionPipeline:
     def test_underpowered_is_run(self) -> None:
         cfg = ExperimentConfig(test_type="proportion")
         data = ExperimentData(
-            control_n=50, treatment_n=50,
-            control_success=2, treatment_success=3,
+            control_n=50,
+            treatment_n=50,
+            control_success=2,
+            treatment_success=3,
         )
         result = analyze_experiment(cfg, data)
         assert result.overall_recommendation == "RUN"
@@ -226,8 +234,10 @@ class TestProportionPipeline:
     def test_zero_zero_conversions_does_not_crash(self) -> None:
         cfg = ExperimentConfig(test_type="proportion")
         data = ExperimentData(
-            control_n=100, treatment_n=100,
-            control_success=0, treatment_success=0,
+            control_n=100,
+            treatment_n=100,
+            control_success=0,
+            treatment_success=0,
         )
         result = analyze_experiment(cfg, data)
         assert isinstance(result, ExperimentAnalysis)
@@ -261,8 +271,10 @@ class TestMeanPipeline:
         trt = (rng.normal(10.0, 3.0, 500) + 1.5).tolist()
         cfg = ExperimentConfig(test_type="mean")
         data = ExperimentData(
-            control_n=500, treatment_n=500,
-            control_success=ctrl, treatment_success=trt,
+            control_n=500,
+            treatment_n=500,
+            control_success=ctrl,
+            treatment_success=trt,
         )
         result = analyze_experiment(cfg, data)
         assert result.primary_result.test_type == "t-test"
@@ -275,8 +287,10 @@ class TestMeanPipeline:
         trt = rng.normal(10.0, 3.0, 100).tolist()
         cfg = ExperimentConfig(test_type="mean")
         data = ExperimentData(
-            control_n=100, treatment_n=100,
-            control_success=ctrl, treatment_success=trt,
+            control_n=100,
+            treatment_n=100,
+            control_success=ctrl,
+            treatment_success=trt,
         )
         result = analyze_experiment(cfg, data)
         assert result.primary_result.test_type == "t-test"
@@ -288,8 +302,10 @@ class TestMeanPipeline:
         trt = (rng.normal(10.0, 2.0, 200) + 0.5).tolist()
         cfg = ExperimentConfig(test_type="mean")
         data = ExperimentData(
-            control_n=200, treatment_n=200,
-            control_success=ctrl, treatment_success=trt,
+            control_n=200,
+            treatment_n=200,
+            control_success=ctrl,
+            treatment_success=trt,
         )
         result = analyze_experiment(cfg, data)
         assert result.required_sample_size.method_used == "engine_cohens_d_wald"
@@ -301,8 +317,10 @@ class TestMeanPipeline:
         trt = rng.exponential(5.5, 300).tolist()
         cfg = ExperimentConfig(test_type="ratio")
         data = ExperimentData(
-            control_n=300, treatment_n=300,
-            control_success=ctrl, treatment_success=trt,
+            control_n=300,
+            treatment_n=300,
+            control_success=ctrl,
+            treatment_success=trt,
         )
         result = analyze_experiment(cfg, data)
         assert result.primary_result.test_type == "t-test"
@@ -317,8 +335,10 @@ class TestSequentialPipeline:
     def test_no_sequential_when_sequential_looks_eq_1(self) -> None:
         cfg = ExperimentConfig(test_type="proportion", sequential_looks=1)
         data = ExperimentData(
-            control_n=1000, treatment_n=1000,
-            control_success=50, treatment_success=70,
+            control_n=1000,
+            treatment_n=1000,
+            control_success=50,
+            treatment_success=70,
         )
         result = analyze_experiment(cfg, data)
         assert result.sequential_status is None
@@ -326,19 +346,27 @@ class TestSequentialPipeline:
     def test_sequential_status_populated_when_looks_gt_1(self) -> None:
         cfg = ExperimentConfig(test_type="proportion", sequential_looks=3)
         data = ExperimentData(
-            control_n=2000, treatment_n=2000,
-            control_success=100, treatment_success=120,
+            control_n=2000,
+            treatment_n=2000,
+            control_success=100,
+            treatment_success=120,
         )
         result = analyze_experiment(cfg, data, current_look=None)
         assert result.sequential_status is not None
-        assert result.sequential_status.decision in ("CONTINUE", "STOP_WIN", "STOP_LOSE")
+        assert result.sequential_status.decision in (
+            "CONTINUE",
+            "STOP_WIN",
+            "STOP_LOSE",
+        )
 
     def test_sequential_stop_win_at_interim(self) -> None:
         # 5% vs 10% at look 2/4 (t=0.5): z ≈ 4.24, OBF boundary ≈ 2.77 → STOP_WIN
         cfg = ExperimentConfig(test_type="proportion", sequential_looks=4)
         data = ExperimentData(
-            control_n=1000, treatment_n=1000,
-            control_success=50, treatment_success=100,
+            control_n=1000,
+            treatment_n=1000,
+            control_success=50,
+            treatment_success=100,
         )
         result = analyze_experiment(cfg, data, current_look=2)
         assert result.sequential_status is not None
@@ -350,8 +378,10 @@ class TestSequentialPipeline:
         # OBF efficacy boundary ≈ 3.92, futility ≈ 0.56 → inside both → CONTINUE
         cfg = ExperimentConfig(test_type="proportion", sequential_looks=4)
         data = ExperimentData(
-            control_n=1000, treatment_n=1000,
-            control_success=100, treatment_success=110,
+            control_n=1000,
+            treatment_n=1000,
+            control_success=100,
+            treatment_success=110,
         )
         result = analyze_experiment(cfg, data, current_look=1)
         assert result.sequential_status is not None
@@ -361,8 +391,10 @@ class TestSequentialPipeline:
     def test_sequential_info_fraction_in_01(self) -> None:
         cfg = ExperimentConfig(test_type="proportion", sequential_looks=5)
         data = ExperimentData(
-            control_n=500, treatment_n=500,
-            control_success=25, treatment_success=30,
+            control_n=500,
+            treatment_n=500,
+            control_success=25,
+            treatment_success=30,
         )
         result = analyze_experiment(cfg, data, current_look=2)
         assert result.sequential_status is not None
@@ -371,10 +403,12 @@ class TestSequentialPipeline:
     def test_sequential_required_z_decreases_towards_final_look(self) -> None:
         # At earlier looks the O'Brien-Fleming boundary should be higher.
         cfg = ExperimentConfig(test_type="proportion", sequential_looks=4)
-        data_early = ExperimentData(control_n=500, treatment_n=500,
-                                    control_success=25, treatment_success=28)
-        data_late = ExperimentData(control_n=1500, treatment_n=1500,
-                                   control_success=75, treatment_success=84)
+        data_early = ExperimentData(
+            control_n=500, treatment_n=500, control_success=25, treatment_success=28
+        )
+        data_late = ExperimentData(
+            control_n=1500, treatment_n=1500, control_success=75, treatment_success=84
+        )
         early = analyze_experiment(cfg, data_early, current_look=1)
         late = analyze_experiment(cfg, data_late, current_look=3)
         assert early.sequential_status is not None
@@ -393,7 +427,8 @@ class TestCupedPipeline:
         n = 200
         cfg = ExperimentConfig(test_type="mean", has_cuped_data=False)
         data = ExperimentData(
-            control_n=n, treatment_n=n,
+            control_n=n,
+            treatment_n=n,
             control_success=rng.normal(10, 2, n).tolist(),
             treatment_success=rng.normal(10.5, 2, n).tolist(),
         )
@@ -405,7 +440,8 @@ class TestCupedPipeline:
         n = 200
         cfg = ExperimentConfig(test_type="mean", has_cuped_data=True)
         data = ExperimentData(
-            control_n=n, treatment_n=n,
+            control_n=n,
+            treatment_n=n,
             control_success=rng.normal(10, 2, n).tolist(),
             treatment_success=rng.normal(10.5, 2, n).tolist(),
             cuped_covariates=None,  # missing despite flag
@@ -421,7 +457,8 @@ class TestCupedPipeline:
         post[n:] += 0.3  # treatment lift
         cfg = ExperimentConfig(test_type="mean", has_cuped_data=True)
         data = ExperimentData(
-            control_n=n, treatment_n=n,
+            control_n=n,
+            treatment_n=n,
             control_success=post[:n].tolist(),
             treatment_success=post[n:].tolist(),
             cuped_covariates=pre.tolist(),
@@ -437,7 +474,8 @@ class TestCupedPipeline:
         pre = rng.binomial(1, 0.3, 2 * n).astype(float).tolist()
         cfg = ExperimentConfig(test_type="proportion", has_cuped_data=True)
         data = ExperimentData(
-            control_n=n, treatment_n=n,
+            control_n=n,
+            treatment_n=n,
             control_success=80,
             treatment_success=100,
             cuped_covariates=pre,
@@ -450,7 +488,8 @@ class TestCupedPipeline:
         n = 200
         cfg = ExperimentConfig(test_type="mean", has_cuped_data=True)
         data = ExperimentData(
-            control_n=n, treatment_n=n,
+            control_n=n,
+            treatment_n=n,
             control_success=rng.normal(10, 2, n).tolist(),
             treatment_success=rng.normal(10.5, 2, n).tolist(),
             cuped_covariates=rng.normal(10, 2, n).tolist(),  # length=n, not 2n
@@ -476,8 +515,10 @@ class TestCorrectionsPipeline:
     def test_corrections_applied_for_multiple_metrics(self) -> None:
         cfg = ExperimentConfig(test_type="proportion", n_metrics=3)
         data = ExperimentData(
-            control_n=5000, treatment_n=5000,
-            control_success=250, treatment_success=350,
+            control_n=5000,
+            treatment_n=5000,
+            control_success=250,
+            treatment_success=350,
         )
         result = analyze_experiment(cfg, data)
         assert result.corrected_results is not None
@@ -492,7 +533,8 @@ class TestCorrectionsPipeline:
         post[n:] += 0.3
         cfg = ExperimentConfig(test_type="mean", n_metrics=2, has_cuped_data=True)
         data = ExperimentData(
-            control_n=n, treatment_n=n,
+            control_n=n,
+            treatment_n=n,
             control_success=post[:n].tolist(),
             treatment_success=post[n:].tolist(),
             cuped_covariates=pre.tolist(),
@@ -504,8 +546,10 @@ class TestCorrectionsPipeline:
     def test_corrections_reject_mask_shape(self) -> None:
         cfg = ExperimentConfig(test_type="proportion", n_metrics=5)
         data = ExperimentData(
-            control_n=5000, treatment_n=5000,
-            control_success=250, treatment_success=325,
+            control_n=5000,
+            treatment_n=5000,
+            control_success=250,
+            treatment_success=325,
         )
         result = analyze_experiment(cfg, data)
         assert result.corrected_results is not None
@@ -536,8 +580,10 @@ class TestRecommendationLogic:
     def test_run_when_below_planned_n(self) -> None:
         cfg = ExperimentConfig(test_type="proportion", planned_n_per_group=10000)
         data = ExperimentData(
-            control_n=1000, treatment_n=1000,
-            control_success=50, treatment_success=52,
+            control_n=1000,
+            treatment_n=1000,
+            control_success=50,
+            treatment_success=52,
         )
         result = analyze_experiment(cfg, data)
         assert result.overall_recommendation == "RUN"
@@ -546,8 +592,10 @@ class TestRecommendationLogic:
     def test_run_when_tiny_sample(self) -> None:
         cfg = ExperimentConfig(test_type="proportion")
         data = ExperimentData(
-            control_n=10, treatment_n=10,
-            control_success=1, treatment_success=1,
+            control_n=10,
+            treatment_n=10,
+            control_success=1,
+            treatment_success=1,
         )
         result = analyze_experiment(cfg, data)
         assert result.overall_recommendation == "RUN"
@@ -556,8 +604,10 @@ class TestRecommendationLogic:
         # Tiny effect at first of 4 looks → futility boundary crossed.
         cfg = ExperimentConfig(test_type="proportion", sequential_looks=4)
         data = ExperimentData(
-            control_n=1000, treatment_n=1000,
-            control_success=50, treatment_success=50,  # z=0, below futility
+            control_n=1000,
+            treatment_n=1000,
+            control_success=50,
+            treatment_success=50,  # z=0, below futility
         )
         result = analyze_experiment(cfg, data, current_look=1)
         assert result.sequential_status is not None
@@ -569,7 +619,12 @@ class TestRecommendationLogic:
     ) -> None:
         cfg, data = significant_proportion_data
         result = analyze_experiment(cfg, data)
-        assert result.overall_recommendation in ("RUN", "STOP_WIN", "STOP_LOSE", "NO_EFFECT")
+        assert result.overall_recommendation in (
+            "RUN",
+            "STOP_WIN",
+            "STOP_LOSE",
+            "NO_EFFECT",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -581,8 +636,10 @@ class TestWarnings:
     def test_imbalance_warning_when_ratio_exceeds_threshold(self) -> None:
         cfg = ExperimentConfig(test_type="proportion")
         data = ExperimentData(
-            control_n=1000, treatment_n=800,  # 200/1000 = 20% → above 10%
-            control_success=50, treatment_success=40,
+            control_n=1000,
+            treatment_n=800,  # 200/1000 = 20% → above 10%
+            control_success=50,
+            treatment_success=40,
         )
         result = analyze_experiment(cfg, data)
         assert any("imbalance" in w.lower() for w in result.warnings)
@@ -591,8 +648,10 @@ class TestWarnings:
         # (1000-900)/1000 = 10.0% → NOT strictly > 10% → no warning.
         cfg = ExperimentConfig(test_type="proportion")
         data = ExperimentData(
-            control_n=1000, treatment_n=900,
-            control_success=50, treatment_success=45,
+            control_n=1000,
+            treatment_n=900,
+            control_success=50,
+            treatment_success=45,
         )
         result = analyze_experiment(cfg, data)
         assert not any("imbalance" in w.lower() for w in result.warnings)
@@ -600,8 +659,10 @@ class TestWarnings:
     def test_low_events_warning_triggered(self) -> None:
         cfg = ExperimentConfig(test_type="proportion")
         data = ExperimentData(
-            control_n=1000, treatment_n=1000,
-            control_success=2, treatment_success=3,
+            control_n=1000,
+            treatment_n=1000,
+            control_success=2,
+            treatment_success=3,
         )
         result = analyze_experiment(cfg, data)
         assert any("low event" in w.lower() for w in result.warnings)
@@ -617,8 +678,10 @@ class TestWarnings:
         # Very small sample for a moderately-sized target effect.
         cfg = ExperimentConfig(test_type="proportion", planned_n_per_group=5000)
         data = ExperimentData(
-            control_n=100, treatment_n=100,
-            control_success=5, treatment_success=6,
+            control_n=100,
+            treatment_n=100,
+            control_success=5,
+            treatment_success=6,
         )
         result = analyze_experiment(cfg, data)
         assert any("underpowered" in w.lower() for w in result.warnings)
@@ -626,8 +689,10 @@ class TestWarnings:
     def test_no_duplicate_warnings(self) -> None:
         cfg = ExperimentConfig(test_type="proportion")
         data = ExperimentData(
-            control_n=1000, treatment_n=500,  # imbalanced
-            control_success=2, treatment_success=1,  # low events too
+            control_n=1000,
+            treatment_n=500,  # imbalanced
+            control_success=2,
+            treatment_success=1,  # low events too
         )
         result = analyze_experiment(cfg, data)
         assert len(result.warnings) == len(set(result.warnings))
@@ -649,7 +714,8 @@ class TestTypeValidation:
     def test_proportion_with_list_control_raises(self) -> None:
         cfg = ExperimentConfig(test_type="proportion")
         data = ExperimentData(
-            control_n=100, treatment_n=100,
+            control_n=100,
+            treatment_n=100,
             control_success=[0.05] * 100,
             treatment_success=7,
         )
@@ -659,7 +725,8 @@ class TestTypeValidation:
     def test_proportion_with_list_treatment_raises(self) -> None:
         cfg = ExperimentConfig(test_type="proportion")
         data = ExperimentData(
-            control_n=100, treatment_n=100,
+            control_n=100,
+            treatment_n=100,
             control_success=5,
             treatment_success=[0.07] * 100,
         )
@@ -669,7 +736,8 @@ class TestTypeValidation:
     def test_mean_with_int_control_raises(self) -> None:
         cfg = ExperimentConfig(test_type="mean")
         data = ExperimentData(
-            control_n=100, treatment_n=100,
+            control_n=100,
+            treatment_n=100,
             control_success=5,
             treatment_success=[10.0] * 100,
         )
@@ -679,7 +747,8 @@ class TestTypeValidation:
     def test_mean_with_int_treatment_raises(self) -> None:
         cfg = ExperimentConfig(test_type="mean")
         data = ExperimentData(
-            control_n=100, treatment_n=100,
+            control_n=100,
+            treatment_n=100,
             control_success=[10.0] * 100,
             treatment_success=7,
         )
@@ -728,7 +797,8 @@ class TestAnalysisStructure:
         n = 100
         cfg = ExperimentConfig(test_type="mean")
         data = ExperimentData(
-            control_n=n, treatment_n=n,
+            control_n=n,
+            treatment_n=n,
             control_success=rng.normal(10, 2, n).tolist(),
             treatment_success=rng.normal(10.5, 2, n).tolist(),
         )
@@ -761,7 +831,7 @@ class TestFullIntegration:
         data = ExperimentData(
             control_n=n,
             treatment_n=n,
-            control_success=250,   # 5.0%
+            control_success=250,  # 5.0%
             treatment_success=325,  # 6.5%
             cuped_covariates=pre,
         )
@@ -772,11 +842,20 @@ class TestFullIntegration:
         assert isinstance(result.primary_result.p_value, float)
         assert 0.0 <= result.primary_result.p_value <= 1.0
         assert result.sequential_status is not None
-        assert result.sequential_status.decision in ("CONTINUE", "STOP_WIN", "STOP_LOSE")
+        assert result.sequential_status.decision in (
+            "CONTINUE",
+            "STOP_WIN",
+            "STOP_LOSE",
+        )
         assert result.cuped_result is not None
         assert result.corrected_results is not None
         assert result.corrected_results.method == "fdr_bh"
-        assert result.overall_recommendation in ("RUN", "STOP_WIN", "STOP_LOSE", "NO_EFFECT")
+        assert result.overall_recommendation in (
+            "RUN",
+            "STOP_WIN",
+            "STOP_LOSE",
+            "NO_EFFECT",
+        )
         assert len(result.plain_english) > 0
         assert isinstance(result.warnings, list)
 
@@ -803,7 +882,12 @@ class TestFullIntegration:
 
         result = analyze_experiment(cfg, data)
         assert not result.primary_result.is_significant
-        assert result.overall_recommendation in ("RUN", "STOP_WIN", "STOP_LOSE", "NO_EFFECT")
+        assert result.overall_recommendation in (
+            "RUN",
+            "STOP_WIN",
+            "STOP_LOSE",
+            "NO_EFFECT",
+        )
 
     def test_mean_pipeline_with_cuped_and_corrections(self) -> None:
         """Mean test + CUPED + 2-metric correction end-to-end."""
@@ -819,7 +903,8 @@ class TestFullIntegration:
             has_cuped_data=True,
         )
         data = ExperimentData(
-            control_n=n, treatment_n=n,
+            control_n=n,
+            treatment_n=n,
             control_success=post[:n].tolist(),
             treatment_success=post[n:].tolist(),
             cuped_covariates=pre.tolist(),
@@ -829,4 +914,9 @@ class TestFullIntegration:
         assert result.cuped_result is not None
         assert result.corrected_results is not None
         assert len(result.corrected_results.original_p) == 2
-        assert result.overall_recommendation in ("RUN", "STOP_WIN", "STOP_LOSE", "NO_EFFECT")
+        assert result.overall_recommendation in (
+            "RUN",
+            "STOP_WIN",
+            "STOP_LOSE",
+            "NO_EFFECT",
+        )

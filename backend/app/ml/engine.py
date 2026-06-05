@@ -185,7 +185,9 @@ def run_ml_analysis(experiment_data: MLExperimentInput) -> MLAnalysisResult:
             dtype=float,
         )
         # Proxy SE: 1/sqrt(n_total) — gives more weight to high-volume days.
-        n_total = dm["n_control"].values.astype(float) + dm["n_treatment"].values.astype(float)
+        n_total = dm["n_control"].values.astype(float) + dm[
+            "n_treatment"
+        ].values.astype(float)
         daily_se = pd.Series(1.0 / np.sqrt(np.maximum(n_total, 1.0)), dtype=float)
         n_days = len(daily_lift)
 
@@ -381,8 +383,7 @@ def _extract_insights(
         else:
             insights.append(
                 f"HTE analysis complete. ATE={hte.ate:+.4f}, "
-                f"stability={hte.stability_score:.2f}. "
-                + hte.business_recommendation
+                f"stability={hte.stability_score:.2f}. " + hte.business_recommendation
             )
 
     # Segments: audience discovery.
@@ -405,8 +406,7 @@ def _extract_insights(
         else:
             insights.append(
                 f"{segments.optimal_k} segments found; no segment shows "
-                f"significantly stronger response. "
-                + segments.overall_recommendation
+                f"significantly stronger response. " + segments.overall_recommendation
             )
 
     return insights

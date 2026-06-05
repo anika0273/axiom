@@ -37,6 +37,7 @@ Failure diagnosis
 • INTc fail: CUPED adjusted p is higher — variance reduction not achieved.
 • INTd fail: corrections skipped despite n_metrics > 1.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -64,15 +65,19 @@ def _build_cuped_covariates(
     """
     rng = np.random.default_rng(seed)
     # Control group: successes first, then failures
-    ctrl_scores = np.concatenate([
-        rng.normal(0.6, 0.2, ctrl_successes),        # converters: higher scores
-        rng.normal(0.3, 0.2, n_ctrl - ctrl_successes), # non-converters
-    ])
+    ctrl_scores = np.concatenate(
+        [
+            rng.normal(0.6, 0.2, ctrl_successes),  # converters: higher scores
+            rng.normal(0.3, 0.2, n_ctrl - ctrl_successes),  # non-converters
+        ]
+    )
     # Treatment group
-    trt_scores = np.concatenate([
-        rng.normal(0.6, 0.2, trt_successes),
-        rng.normal(0.3, 0.2, n_trt - trt_successes),
-    ])
+    trt_scores = np.concatenate(
+        [
+            rng.normal(0.6, 0.2, trt_successes),
+            rng.normal(0.3, 0.2, n_trt - trt_successes),
+        ]
+    )
     return list(np.clip(ctrl_scores, 0.0, 1.0)) + list(np.clip(trt_scores, 0.0, 1.0))
 
 
@@ -111,10 +116,7 @@ def _run_integration(
         intc_note = "CUPED not run (no covariates)"
 
     # ── INTd: corrections present when n_metrics > 1 ─────────────────────────
-    intd_pass = (
-        config.n_metrics <= 1
-        or result.corrected_results is not None
-    )
+    intd_pass = config.n_metrics <= 1 or result.corrected_results is not None
 
     # ── INTe/f: metadata present ──────────────────────────────────────────────
     inte_pass = result.warnings is not None
@@ -123,23 +125,37 @@ def _run_integration(
     # ── Recommendation check ─────────────────────────────────────────────────
     rec_pass = result.overall_recommendation == expected_recommendation
 
-    all_pass = inta_pass and intb_pass and intc_pass and intd_pass and inte_pass and intf_pass and rec_pass
+    all_pass = (
+        inta_pass
+        and intb_pass
+        and intc_pass
+        and intd_pass
+        and inte_pass
+        and intf_pass
+        and rec_pass
+    )
 
     failures: list[str] = []
     if not inta_pass:
-        failures.append(f"INTa: seq={seq_dec} but rec={result.overall_recommendation} (should be STOP_WIN)")
+        failures.append(
+            f"INTa: seq={seq_dec} but rec={result.overall_recommendation} (should be STOP_WIN)"
+        )
     if not intb_pass:
         failures.append("INTb: significant but lift_abs=0")
     if not intc_pass:
         failures.append(f"INTc: CUPED adj_p > unadj_p ({intc_note})")
     if not intd_pass:
-        failures.append(f"INTd: n_metrics={config.n_metrics} but corrected_results=None")
+        failures.append(
+            f"INTd: n_metrics={config.n_metrics} but corrected_results=None"
+        )
     if not inte_pass:
         failures.append("INTe: warnings is None")
     if not intf_pass:
         failures.append("INTf: plain_english is empty")
     if not rec_pass:
-        failures.append(f"recommendation: expected {expected_recommendation}, got {result.overall_recommendation}")
+        failures.append(
+            f"recommendation: expected {expected_recommendation}, got {result.overall_recommendation}"
+        )
 
     likely = "; ".join(failures) if failures else ""
 
@@ -164,9 +180,7 @@ def _run_integration(
         notes=notes,
     )
 
-    assert all_pass, (
-        f"{scenario_label}: {'; '.join(failures)}"
-    )
+    assert all_pass, f"{scenario_label}: {'; '.join(failures)}"
 
 
 def test_int1_clear_winner_sequential_stop() -> None:
@@ -176,8 +190,8 @@ def test_int1_clear_winner_sequential_stop() -> None:
     winner before the planned final look.  The engine must propagate this to
     overall_recommendation = 'STOP_WIN'.
     """
-    ctrl_n, ctrl_s = 3000, 300    # 10.0%
-    trt_n, trt_s = 3000, 420      # 14.0%
+    ctrl_n, ctrl_s = 3000, 300  # 10.0%
+    trt_n, trt_s = 3000, 420  # 14.0%
 
     covariates = _build_cuped_covariates(ctrl_n, trt_n, ctrl_s, trt_s, seed=_RNG_SEED)
 
@@ -230,8 +244,8 @@ def test_int2_no_effect_underpowered() -> None:
     data = ExperimentData(
         control_n=200,
         treatment_n=200,
-        control_success=20,   # 10.0%
-        treatment_success=21, # 10.5%
+        control_success=20,  # 10.0%
+        treatment_success=21,  # 10.5%
     )
 
     result = analyze_experiment(config, data)
@@ -239,9 +253,13 @@ def test_int2_no_effect_underpowered() -> None:
     # Not significant, n below required → RUN
     passed = result.overall_recommendation == "RUN"
     likely = (
-        "Should be RUN: not significant (p >> 0.05) and current_n << required_n. "
-        "Check that recommendation logic correctly identifies underpowered state."
-    ) if not passed else ""
+        (
+            "Should be RUN: not significant (p >> 0.05) and current_n << required_n. "
+            "Check that recommendation logic correctly identifies underpowered state."
+        )
+        if not passed
+        else ""
+    )
 
     record(
         module=_MODULE,
@@ -281,7 +299,7 @@ def test_int3_no_effect_fully_powered() -> None:
         control_n=10_000,
         treatment_n=10_000,
         control_success=1000,  # 10.0%
-        treatment_success=1010, # 10.1%
+        treatment_success=1010,  # 10.1%
     )
 
     result = analyze_experiment(config, data)
@@ -289,9 +307,13 @@ def test_int3_no_effect_fully_powered() -> None:
     # p >> 0.05 and n >= planned → NO_EFFECT
     passed = result.overall_recommendation == "NO_EFFECT"
     likely = (
-        "Should be NO_EFFECT: not significant, n ≥ planned. "
-        "Check that recommendation uses >= (not >) for the n comparison."
-    ) if not passed else ""
+        (
+            "Should be NO_EFFECT: not significant, n ≥ planned. "
+            "Check that recommendation uses >= (not >) for the n comparison."
+        )
+        if not passed
+        else ""
+    )
 
     record(
         module=_MODULE,

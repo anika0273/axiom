@@ -44,9 +44,9 @@ TIMEOUT_SECONDS = 45.0
 _COST_PER_INPUT_TOKEN = 3.0 / 1_000_000
 _COST_PER_OUTPUT_TOKEN = 15.0 / 1_000_000
 
-_SYSTEM_PROMPT: str = (
-    Path(__file__).parent / "prompts" / "reporter_v1.txt"
-).read_text(encoding="utf-8")
+_SYSTEM_PROMPT: str = (Path(__file__).parent / "prompts" / "reporter_v1.txt").read_text(
+    encoding="utf-8"
+)
 
 _SECTION_TITLES: dict[int, str] = {
     1: "Executive Summary",
@@ -489,7 +489,8 @@ def _validate_grounding(
         content = tool_output.get(section_key, "")
         if _PVALUE_PATTERN.search(content):
             logger.warning(
-                "grounding: statistical jargon (p-value/z-score) detected in %s", section_key
+                "grounding: statistical jargon (p-value/z-score) detected in %s",
+                section_key,
             )
 
     # Validate business impact arithmetic when daily_revenue is available
@@ -501,7 +502,10 @@ def _validate_grounding(
         for match in dollar_matches:
             val = float(match.replace("$", "").replace(",", ""))
             # Flag if the stated monthly figure is off by more than 50%
-            if val > 1000 and abs(val - expected_monthly) / max(expected_monthly, 1) > 0.5:
+            if (
+                val > 1000
+                and abs(val - expected_monthly) / max(expected_monthly, 1) > 0.5
+            ):
                 logger.warning(
                     "grounding: business impact $%.0f in section_2 differs from "
                     "expected $%.0f by >50%%",
@@ -594,9 +598,7 @@ def _assemble_html(markdown_content: str) -> str:
             if re.match(r"^\|[-| ]+\|$", stripped):
                 continue
             cells = [c.strip() for c in stripped.strip("|").split("|")]
-            out.append(
-                "<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>"
-            )
+            out.append("<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
             continue
         else:
             if in_table:
@@ -628,7 +630,7 @@ def _assemble_html(markdown_content: str) -> str:
 
     body = "\n".join(out)
     return (
-        "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\">"
+        '<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="utf-8">'
         "<title>Experiment Report</title></head>\n<body>\n"
         f"{body}\n</body>\n</html>"
     )
@@ -636,9 +638,7 @@ def _assemble_html(markdown_content: str) -> str:
 
 def _count_words(sections: list[ReportSection]) -> int:
     """Count words across sections 1–7 only (not the appendix)."""
-    text = " ".join(
-        s.content for s in sections if s.section_number < 8
-    )
+    text = " ".join(s.content for s in sections if s.section_number < 8)
     return len(text.split())
 
 
@@ -777,7 +777,9 @@ async def generate_report(
     tool_output: dict[str, Any] = dict(tool_block.input)
 
     # Run grounding validator — fixes recommendation and logs issues
-    tool_output = _validate_grounding(tool_output, stats_result, ml_result, daily_revenue)
+    tool_output = _validate_grounding(
+        tool_output, stats_result, ml_result, daily_revenue
+    )
 
     # Run OutputValidator for additional consistency checks and auto-fixes
     stats_dict = {
@@ -831,8 +833,8 @@ async def generate_report(
     recommendation: Literal["SHIP", "DO_NOT_SHIP", "EXTEND", "INVESTIGATE"] = (
         tool_output.get("recommendation", "INVESTIGATE")
     )
-    confidence_level: Literal["High", "Medium", "Low"] = (
-        tool_output.get("confidence_level", "Low")
+    confidence_level: Literal["High", "Medium", "Low"] = tool_output.get(
+        "confidence_level", "Low"
     )
 
     now = datetime.now(timezone.utc)
@@ -884,10 +886,18 @@ async def generate_report(
 def _section_data_sources(section_number: int) -> list[str]:
     """Return the result fields that inform a given AI-generated section."""
     sources: dict[int, list[str]] = {
-        1: ["stats_result.is_significant", "stats_result.lift_pct", "ml_result.overall_verdict"],
+        1: [
+            "stats_result.is_significant",
+            "stats_result.lift_pct",
+            "ml_result.overall_verdict",
+        ],
         2: ["stats_result.lift_pct", "stats_result.lift_abs", "daily_revenue"],
         3: ["experiment_name", "daily_traffic"],
-        4: ["stats_result.is_significant", "stats_result.lift_pct", "stats_result.warnings"],
+        4: [
+            "stats_result.is_significant",
+            "stats_result.lift_pct",
+            "stats_result.warnings",
+        ],
         5: ["ml_result.hte_top_modifier", "ml_result.responsive_segments"],
         6: [
             "ml_result.anomaly_validity",
@@ -1016,6 +1026,9 @@ def _derive_confidence(
     """Deterministic confidence level from results."""
     if not ml.can_trust_results or not stats.is_significant:
         return "Low"
-    if ml.novelty_pattern in ("NOVELTY", "LEARNING") or ml.overall_verdict == "NEEDS_REVIEW":
+    if (
+        ml.novelty_pattern in ("NOVELTY", "LEARNING")
+        or ml.overall_verdict == "NEEDS_REVIEW"
+    ):
         return "Medium"
     return "High"

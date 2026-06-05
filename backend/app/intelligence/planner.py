@@ -47,9 +47,9 @@ _COST_PER_INPUT_TOKEN = 3.0 / 1_000_000
 _COST_PER_OUTPUT_TOKEN = 15.0 / 1_000_000
 _SAMPLE_SIZE_DISCREPANCY_THRESHOLD = 0.15
 
-_SYSTEM_PROMPT: str = (
-    Path(__file__).parent / "prompts" / "planner_v1.txt"
-).read_text(encoding="utf-8")
+_SYSTEM_PROMPT: str = (Path(__file__).parent / "prompts" / "planner_v1.txt").read_text(
+    encoding="utf-8"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -563,9 +563,7 @@ async def plan_experiment(
     validation = validate_plan(plan)
     if not validation.valid and confidence == "high":
         confidence = "medium"
-        confidence_reasoning += (
-            f" (downgraded: {'; '.join(validation.errors)})"
-        )
+        confidence_reasoning += f" (downgraded: {'; '.join(validation.errors)})"
 
     return ExperimentPlanResult(
         plan=plan,
@@ -603,9 +601,7 @@ def validate_plan(plan: ExperimentPlan) -> ValidationResult:
                 f"baseline {primary.baseline} is outside valid range (0.001, 0.999)."
             )
         if primary.type == "proportion" and primary.baseline > 1.0:
-            errors.append(
-                f"baseline={primary.baseline} > 1.0 for a proportion metric."
-            )
+            errors.append(f"baseline={primary.baseline} > 1.0 for a proportion metric.")
 
     if plan.recommended_mde is not None:
         if not (0.001 <= abs(plan.recommended_mde) <= 0.5):
@@ -656,7 +652,9 @@ async def extract_clarifying_questions(description: str) -> list[str]:
     """
     cleaned, err = _sanitize_input(description)
     if err:
-        return ["Please provide a valid experiment description (under 2000 characters, no system instructions)."]
+        return [
+            "Please provide a valid experiment description (under 2000 characters, no system instructions)."
+        ]
 
     client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 

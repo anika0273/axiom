@@ -21,6 +21,7 @@ Failure diagnosis
 • p-value mismatch → wrong degrees of freedom or two-sided correction.
 • CI mismatch → pooled variance used instead of per-group Welch SE.
 """
+
 from __future__ import annotations
 
 import math
@@ -39,7 +40,9 @@ _CI_TOL = 0.001  # tolerance for CI endpoints
 _RNG_SEED = 42
 
 
-def _welch_ci(ctrl: np.ndarray, trt: np.ndarray, alpha: float = 0.05) -> tuple[float, float]:
+def _welch_ci(
+    ctrl: np.ndarray, trt: np.ndarray, alpha: float = 0.05
+) -> tuple[float, float]:
     """Independent Welch CI computation (no scipy shortcuts)."""
     n_c, n_t = len(ctrl), len(trt)
     s2_c = float(np.var(ctrl, ddof=1))
@@ -94,7 +97,7 @@ def _run_scenario(
         scenario=label,
         expected=f"t={ref_t:.4f}, p={ref_p:.6f}, reject={ref_reject}",
         observed=f"t={result.test_statistic:.4f}, p={result.p_value:.6f}, "
-                 f"reject={result.is_significant}",
+        f"reject={result.is_significant}",
         delta=f"Δt={dt:.2e}, Δp={dp:.2e}",
         tolerance=f"≤{_TOL}",
         passed=all_pass,
@@ -142,7 +145,9 @@ def test_m2_large_sample_clear_effect() -> None:
         notes="True effect = 2 units; should be highly significant.",
     )
     result = run_mean_test(ctrl, trt)
-    assert result.is_significant, "Expected significant result with n=500 and 2-unit effect."
+    assert (
+        result.is_significant
+    ), "Expected significant result with n=500 and 2-unit effect."
 
 
 def test_m3_unequal_variance() -> None:
@@ -163,10 +168,11 @@ def test_m3_unequal_variance() -> None:
     )
     # Welch df must be less than n_c + n_t - 2 = 398
     from scipy.stats import ttest_ind as _tind
+
     res_w = _tind(trt, ctrl, equal_var=False)
-    assert float(res_w.df) < 397.0, (
-        f"Welch df ({res_w.df:.1f}) should be < 398 when variances are unequal."
-    )
+    assert (
+        float(res_w.df) < 397.0
+    ), f"Welch df ({res_w.df:.1f}) should be < 398 when variances are unequal."
 
 
 def test_m4_borderline_significance() -> None:

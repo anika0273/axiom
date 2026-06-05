@@ -92,8 +92,8 @@ class TestResult(BaseModel):
     is_significant: bool
     p_value: float
     confidence_interval: tuple[float, float]  # 95% CI on the difference
-    lift_pct: float   # relative lift: (treatment − control) / control × 100
-    lift_abs: float   # absolute lift: treatment_metric − control_metric
+    lift_pct: float  # relative lift: (treatment − control) / control × 100
+    lift_abs: float  # absolute lift: treatment_metric − control_metric
     test_statistic: float
     test_type: Literal["z-test", "t-test", "cuped-z"]
     sample_warnings: list[str]  # e.g. ["small sample", "low conversions"]
@@ -296,7 +296,9 @@ def run_proportion_test(
         alternative="two-sided",
     )
 
-    ci = _proportion_ci(control_successes, control_n, treatment_successes, treatment_n, alpha)
+    ci = _proportion_ci(
+        control_successes, control_n, treatment_successes, treatment_n, alpha
+    )
 
     lift_abs = p_t - p_c
     lift_pct = (lift_abs / p_c * 100.0) if p_c > 0.0 else 0.0
@@ -450,14 +452,18 @@ def run_cuped_proportion_test(
     # Synthesise binary outcome vectors: converters occupy the first positions.
     # theta estimated from pooled regression captures the within-experiment
     # covariate-outcome relationship.
-    y_c = np.concatenate([
-        np.ones(control_successes),
-        np.zeros(control_n - control_successes),
-    ])
-    y_t = np.concatenate([
-        np.ones(treatment_successes),
-        np.zeros(treatment_n - treatment_successes),
-    ])
+    y_c = np.concatenate(
+        [
+            np.ones(control_successes),
+            np.zeros(control_n - control_successes),
+        ]
+    )
+    y_t = np.concatenate(
+        [
+            np.ones(treatment_successes),
+            np.zeros(treatment_n - treatment_successes),
+        ]
+    )
 
     y_pooled = np.concatenate([y_c, y_t])
     x_pooled = np.concatenate([control_covariates, treatment_covariates])

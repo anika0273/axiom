@@ -105,7 +105,9 @@ async def run_hte(
 
     try:
         model = fit_hte_model(
-            X, t, y,
+            X,
+            t,
+            y,
             random_state=body.random_state,
             bootstrap=body.bootstrap,
             n_bootstrap=body.n_bootstrap,
@@ -155,7 +157,9 @@ async def run_segments(
 
     try:
         analysis = discover_segments(
-            X, t, y,
+            X,
+            t,
+            y,
             max_k=body.max_k,
             random_state=body.random_state,
         )

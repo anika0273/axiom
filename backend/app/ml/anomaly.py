@@ -27,11 +27,13 @@ from sklearn.ensemble import IsolationForest
 logger = logging.getLogger(__name__)
 
 _MIN_DAYS = 7
-_BASELINE_FRACTION = 0.20        # use first 20% of days when no baseline given
-_VOLUME_SPIKE_SIGMA = 3.0        # flag days > 3σ above baseline mean
-_CUSUM_CRITICAL_CROSSINGS = 2    # CUSUM is critical when threshold crossed ≥ twice
-_OUTLIER_CRITICAL_FRACTION = 0.20  # outlier / volume checks become critical above 20% days
-_SRM_ALPHA = 0.01                # chi-squared significance level for SRM
+_BASELINE_FRACTION = 0.20  # use first 20% of days when no baseline given
+_VOLUME_SPIKE_SIGMA = 3.0  # flag days > 3σ above baseline mean
+_CUSUM_CRITICAL_CROSSINGS = 2  # CUSUM is critical when threshold crossed ≥ twice
+_OUTLIER_CRITICAL_FRACTION = (
+    0.20  # outlier / volume checks become critical above 20% days
+)
+_SRM_ALPHA = 0.01  # chi-squared significance level for SRM
 
 
 @dataclass
@@ -124,8 +126,9 @@ def check_srm(
     # expected values we compute the statistic manually via chi2_contingency
     # on the 2×2 contingency table [observed; expected].
     chi2_stat, p_value, _dof, _ex = chi2_contingency(
-        np.array([[total_treatment, total_control],
-                  [expected_treatment, expected_control]]),
+        np.array(
+            [[total_treatment, total_control], [expected_treatment, expected_control]]
+        ),
         correction=False,
     )
 
@@ -220,9 +223,7 @@ def detect_outlier_days(
         )
         severity = "critical"
     else:
-        description = (
-            f"{n_outliers}/{n_total} days ({outlier_fraction:.0%}) flagged as anomalous."
-        )
+        description = f"{n_outliers}/{n_total} days ({outlier_fraction:.0%}) flagged as anomalous."
         action = (
             "Review flagged days for bot traffic, tracking outages, or "
             "holiday effects. Consider excluding them from analysis."
@@ -231,7 +232,9 @@ def detect_outlier_days(
 
     logger.info(
         "outlier_days: n_outliers=%d/%d fraction=%.3f",
-        n_outliers, n_total, outlier_fraction,
+        n_outliers,
+        n_total,
+        outlier_fraction,
     )
     return ValidationCheck(
         name="outlier_days",
@@ -344,7 +347,9 @@ def check_cusum_drift(
 
     logger.info(
         "cusum_drift: crossings=%d max_cusum=%.2f passed=%s",
-        crossings, max_cusum, passed,
+        crossings,
+        max_cusum,
+        passed,
     )
     return ValidationCheck(
         name="cusum_drift",
@@ -399,7 +404,9 @@ def check_volume_spike(
         baseline_values = total_n
 
     baseline_mean = float(np.mean(baseline_values))
-    baseline_std = float(np.std(baseline_values, ddof=1)) if len(baseline_values) > 1 else 0.0
+    baseline_std = (
+        float(np.std(baseline_values, ddof=1)) if len(baseline_values) > 1 else 0.0
+    )
 
     spike_threshold = baseline_mean + _VOLUME_SPIKE_SIGMA * max(baseline_std, 1.0)
     spike_mask = total_n > spike_threshold
@@ -440,7 +447,9 @@ def check_volume_spike(
 
     logger.info(
         "volume_spike: n_spikes=%d/%d fraction=%.3f",
-        n_spikes, n_days, spike_fraction,
+        n_spikes,
+        n_days,
+        spike_fraction,
     )
     return ValidationCheck(
         name="volume_spike",
@@ -539,28 +548,44 @@ def validate_experiment(
 
     # Each check is wrapped independently so a bug in one never silences others.
     _check_fns = [
-        ("srm_check", lambda: check_srm(
-            daily_metrics["n_control"],
-            daily_metrics["n_treatment"],
-        )),
+        (
+            "srm_check",
+            lambda: check_srm(
+                daily_metrics["n_control"],
+                daily_metrics["n_treatment"],
+            ),
+        ),
         ("outlier_days", lambda: detect_outlier_days(daily_metrics)),
-        ("cusum_drift", lambda: check_cusum_drift(
-            daily_metrics["control_metric"],
-            daily_metrics["treatment_metric"],
-        )),
-        ("volume_spike", lambda: check_volume_spike(
-            daily_metrics["n_control"],
-            daily_metrics["n_treatment"],
-            baseline_period=baseline_period,
-        )),
+        (
+            "cusum_drift",
+            lambda: check_cusum_drift(
+                daily_metrics["control_metric"],
+                daily_metrics["treatment_metric"],
+            ),
+        ),
+        (
+            "volume_spike",
+            lambda: check_volume_spike(
+                daily_metrics["n_control"],
+                daily_metrics["n_treatment"],
+                baseline_period=baseline_period,
+            ),
+        ),
     ]
 
     for check_name, fn in _check_fns:
         try:
             result = fn()
-            logger.info("check %s: passed=%s score=%.4f", check_name, result.passed, result.score)
+            logger.info(
+                "check %s: passed=%s score=%.4f",
+                check_name,
+                result.passed,
+                result.score,
+            )
         except Exception as exc:  # noqa: BLE001
-            logger.error("check %s raised unexpectedly: %s", check_name, exc, exc_info=True)
+            logger.error(
+                "check %s raised unexpectedly: %s", check_name, exc, exc_info=True
+            )
             result = ValidationCheck(
                 name=check_name,
                 passed=False,

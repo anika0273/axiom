@@ -1,4 +1,5 @@
 """Unit tests for intelligence.costs — cost estimation helpers."""
+
 from __future__ import annotations
 
 import pytest

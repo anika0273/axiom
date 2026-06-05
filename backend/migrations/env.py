@@ -1,4 +1,5 @@
 """Alembic migration environment — async SQLAlchemy 2.0."""
+
 from __future__ import annotations
 
 import asyncio

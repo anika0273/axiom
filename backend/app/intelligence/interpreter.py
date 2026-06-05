@@ -30,7 +30,9 @@ import anthropic
 
 from app.core.config import settings
 from app.intelligence.guardrails import InputGuardrail, OutputValidator
-from app.intelligence.templates.fallback_interpretation import build_fallback_interpretation
+from app.intelligence.templates.fallback_interpretation import (
+    build_fallback_interpretation,
+)
 
 _output_validator = OutputValidator()
 
@@ -202,7 +204,9 @@ def parse_ml_from_json(json_data: dict[str, Any]) -> MLAnalysisSummary:
         hte_ate=float(hte["ate"]) if hte else None,
         hte_business_recommendation=hte.get("business_recommendation") if hte else None,
         responsive_segments=responsive,
-        segment_recommendation=segments.get("overall_recommendation") if segments else None,
+        segment_recommendation=(
+            segments.get("overall_recommendation") if segments else None
+        ),
     )
 
 
@@ -301,8 +305,12 @@ def _validate_grounding(assembled: str, stats: FullAnalysisResult) -> None:
         # "ship" outside of "do_not_ship" / "not ship" context is a grounding failure
         ship_pos = lower.find("ship")
         while ship_pos != -1:
-            context = lower[max(0, ship_pos - 10): ship_pos + 15]
-            if "not" not in context and "do_not" not in context and "do not" not in context:
+            context = lower[max(0, ship_pos - 10) : ship_pos + 15]
+            if (
+                "not" not in context
+                and "do_not" not in context
+                and "do not" not in context
+            ):
                 logger.warning(
                     "grounding: 'ship' found for non-significant result (p=%.4f) context=%r",
                     stats.p_value,
@@ -354,7 +362,9 @@ async def interpret_results(
     """
     # Sanitize experiment_name before including it in the prompt
     sanitized = InputGuardrail.sanitize(experiment_name, max_chars=200)
-    safe_name = sanitized.text if not sanitized.rejection_reason else "Unnamed Experiment"
+    safe_name = (
+        sanitized.text if not sanitized.rejection_reason else "Unnamed Experiment"
+    )
     if sanitized.rejection_reason:
         logger.warning(
             "interpret_results: experiment_name rejected by guardrail: %s",
@@ -483,7 +493,9 @@ async def interpret_subgroup(
         )
         return response.content[0].text if response.content else ""
     except Exception as exc:
-        logger.warning("interpret_subgroup failed for experiment=%r: %s", experiment_name, exc)
+        logger.warning(
+            "interpret_subgroup failed for experiment=%r: %s", experiment_name, exc
+        )
         direction = "increased" if lift > 0 else "decreased"
         return (
             f"Segment {seg_id} ({size_pct:.1%} of users) {direction} "

@@ -243,23 +243,27 @@ class OutputValidator:
         # Required fields
         for f in self._PLAN_REQUIRED:
             if not plan.get(f):
-                issues.append(ValidationIssue(
-                    severity="error",
-                    code="MISSING_FIELD",
-                    message=f"Required field '{f}' is missing or empty.",
-                ))
+                issues.append(
+                    ValidationIssue(
+                        severity="error",
+                        code="MISSING_FIELD",
+                        message=f"Required field '{f}' is missing or empty.",
+                    )
+                )
 
         # Confidence enum
         confidence = plan.get("confidence")
         if confidence and confidence not in self._CONFIDENCE_VALUES:
-            issues.append(ValidationIssue(
-                severity="error",
-                code="INVALID_CONFIDENCE",
-                message=(
-                    f"confidence='{confidence}' must be one of "
-                    f"{sorted(self._CONFIDENCE_VALUES)}."
-                ),
-            ))
+            issues.append(
+                ValidationIssue(
+                    severity="error",
+                    code="INVALID_CONFIDENCE",
+                    message=(
+                        f"confidence='{confidence}' must be one of "
+                        f"{sorted(self._CONFIDENCE_VALUES)}."
+                    ),
+                )
+            )
 
         # Sample size tolerance (15 %)
         plan_n = plan.get("sample_size_per_group")
@@ -267,24 +271,28 @@ class OutputValidator:
         if plan_n is not None and stats_n is not None and stats_n > 0:
             pct_diff = abs(plan_n - stats_n) / stats_n
             if pct_diff > 0.15:
-                issues.append(ValidationIssue(
-                    severity="warning",
-                    code="SAMPLE_SIZE_MISMATCH",
-                    message=(
-                        f"Plan sample_size={plan_n} differs from stats engine "
-                        f"value {stats_n} by {pct_diff:.1%} (threshold: 15%)."
-                    ),
-                ))
+                issues.append(
+                    ValidationIssue(
+                        severity="warning",
+                        code="SAMPLE_SIZE_MISMATCH",
+                        message=(
+                            f"Plan sample_size={plan_n} differs from stats engine "
+                            f"value {stats_n} by {pct_diff:.1%} (threshold: 15%)."
+                        ),
+                    )
+                )
 
         # No statistical jargon in text fields
         for field_key in ("hypothesis", "planner_notes"):
             val = plan.get(field_key, "")
             if val and _PVALUE_PATTERN.search(str(val)):
-                issues.append(ValidationIssue(
-                    severity="warning",
-                    code="PVALUE_IN_TEXT",
-                    message=f"Statistical jargon (p-value/z-score) found in '{field_key}'.",
-                ))
+                issues.append(
+                    ValidationIssue(
+                        severity="warning",
+                        code="PVALUE_IN_TEXT",
+                        message=f"Statistical jargon (p-value/z-score) found in '{field_key}'.",
+                    )
+                )
                 break
 
         has_errors = any(i.severity == "error" for i in issues)
@@ -321,23 +329,27 @@ class OutputValidator:
 
         # Significance contradiction
         if is_significant and "not significant" in lower:
-            issues.append(ValidationIssue(
-                severity="warning",
-                code="SIGNIFICANCE_CONTRADICTION",
-                message="Text says 'not significant' but is_significant=True.",
-            ))
+            issues.append(
+                ValidationIssue(
+                    severity="warning",
+                    code="SIGNIFICANCE_CONTRADICTION",
+                    message="Text says 'not significant' but is_significant=True.",
+                )
+            )
 
         # SHIP in a non-significant context
         if not is_significant:
             pos = lower.find("ship")
             while pos != -1:
-                ctx = lower[max(0, pos - 10): pos + 15]
+                ctx = lower[max(0, pos - 10) : pos + 15]
                 if "not" not in ctx and "do_not" not in ctx and "do not" not in ctx:
-                    issues.append(ValidationIssue(
-                        severity="warning",
-                        code="SHIP_FOR_NONSIG",
-                        message="Text recommends 'ship' for a non-significant result.",
-                    ))
+                    issues.append(
+                        ValidationIssue(
+                            severity="warning",
+                            code="SHIP_FOR_NONSIG",
+                            message="Text recommends 'ship' for a non-significant result.",
+                        )
+                    )
                     break
                 pos = lower.find("ship", pos + 1)
 
@@ -346,24 +358,28 @@ class OutputValidator:
         for pct_str in re.findall(r"(\d+\.?\d*)%", text):
             val = float(pct_str)
             if val > 1.0 and abs(val - expected) > 5.0:
-                issues.append(ValidationIssue(
-                    severity="warning",
-                    code="LIFT_MISMATCH",
-                    message=(
-                        f"Text mentions {val:.1f}% but actual lift_pct is "
-                        f"{lift_pct:.4f}% — difference exceeds 5 percentage points."
-                    ),
-                ))
+                issues.append(
+                    ValidationIssue(
+                        severity="warning",
+                        code="LIFT_MISMATCH",
+                        message=(
+                            f"Text mentions {val:.1f}% but actual lift_pct is "
+                            f"{lift_pct:.4f}% — difference exceeds 5 percentage points."
+                        ),
+                    )
+                )
                 break
 
         # Word count
         word_count = len(text.split())
         if word_count > 300:
-            issues.append(ValidationIssue(
-                severity="warning",
-                code="TOO_LONG",
-                message=f"Interpretation is {word_count} words (limit: 300).",
-            ))
+            issues.append(
+                ValidationIssue(
+                    severity="warning",
+                    code="TOO_LONG",
+                    message=f"Interpretation is {word_count} words (limit: 300).",
+                )
+            )
 
         return ValidationReport(
             passed=len(issues) == 0,
@@ -404,7 +420,9 @@ class OutputValidator:
             report["recommendation"] = "EXTEND"
             msg = "Auto-fixed: SHIP → EXTEND (is_significant=False)."
             auto_fixed.append(msg)
-            issues.append(ValidationIssue(severity="error", code="SHIP_NONSIG", message=msg))
+            issues.append(
+                ValidationIssue(severity="error", code="SHIP_NONSIG", message=msg)
+            )
             logger.warning("OutputValidator.validate_report: %s", msg)
             recommendation = "EXTEND"
 
@@ -413,28 +431,34 @@ class OutputValidator:
             report["recommendation"] = "INVESTIGATE"
             msg = "Auto-fixed: SHIP → INVESTIGATE (can_trust_results=False)."
             auto_fixed.append(msg)
-            issues.append(ValidationIssue(severity="error", code="SHIP_INVALID", message=msg))
+            issues.append(
+                ValidationIssue(severity="error", code="SHIP_INVALID", message=msg)
+            )
             logger.warning("OutputValidator.validate_report: %s", msg)
 
         # Statistical jargon in sections 1–7
         for i in range(1, 8):
             content = report.get(f"section_{i}", "")
             if content and _PVALUE_PATTERN.search(content):
-                issues.append(ValidationIssue(
-                    severity="warning",
-                    code="PVALUE_IN_SECTION",
-                    message=f"Statistical jargon detected in section_{i}.",
-                ))
+                issues.append(
+                    ValidationIssue(
+                        severity="warning",
+                        code="PVALUE_IN_SECTION",
+                        message=f"Statistical jargon detected in section_{i}.",
+                    )
+                )
 
         # Word count
         all_text = " ".join(report.get(f"section_{i}", "") for i in range(1, 8))
         word_count = len(all_text.split())
         if word_count > 0 and not (200 <= word_count <= 1500):
-            issues.append(ValidationIssue(
-                severity="warning",
-                code="WORD_COUNT",
-                message=f"Report word count is {word_count} (expected 200–1500).",
-            ))
+            issues.append(
+                ValidationIssue(
+                    severity="warning",
+                    code="WORD_COUNT",
+                    message=f"Report word count is {word_count} (expected 200–1500).",
+                )
+            )
 
         return ValidationReport(
             passed=len(issues) == 0,
@@ -564,14 +588,19 @@ class ClaudeCallWrapper:
                 status = "success" if attempt == 1 else "retry_success"
                 logger.info(
                     "ClaudeCallWrapper status=%s attempt=%d/%d",
-                    status, attempt, max_retries,
+                    status,
+                    attempt,
+                    max_retries,
                 )
                 return result, False
             except Exception as exc:
                 last_exc = exc
                 logger.warning(
                     "ClaudeCallWrapper attempt=%d/%d failed: %s: %s",
-                    attempt, max_retries, type(exc).__name__, exc,
+                    attempt,
+                    max_retries,
+                    type(exc).__name__,
+                    exc,
                 )
                 if attempt < max_retries:
                     await asyncio.sleep(retry_delay)

@@ -161,7 +161,9 @@ async def get_experiment(
     logger.info("get_experiment req=%s id=%s", req_id, experiment_id)
     exp = await experiment_repo.get_experiment(db, experiment_id)
     if exp is None:
-        raise HTTPException(status_code=404, detail=f"Experiment {experiment_id} not found.")
+        raise HTTPException(
+            status_code=404, detail=f"Experiment {experiment_id} not found."
+        )
     return ExperimentEnvelope(data=await _experiment_response(exp, db))
 
 
@@ -185,8 +187,12 @@ async def update_experiment_status(
 ) -> ExperimentEnvelope:
     """Transition an experiment to a new status."""
     req_id = get_request_id(request)
-    logger.info("update_status req=%s id=%s status=%s", req_id, experiment_id, body.status)
+    logger.info(
+        "update_status req=%s id=%s status=%s", req_id, experiment_id, body.status
+    )
     exp = await experiment_repo.update_status(db, experiment_id, body.status)
     if exp is None:
-        raise HTTPException(status_code=404, detail=f"Experiment {experiment_id} not found.")
+        raise HTTPException(
+            status_code=404, detail=f"Experiment {experiment_id} not found."
+        )
     return ExperimentEnvelope(data=await _experiment_response(exp, db))

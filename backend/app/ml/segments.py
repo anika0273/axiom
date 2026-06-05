@@ -268,7 +268,9 @@ def _assignment_consistency(
             if union == 0:
                 pair_scores.append(1.0)
             else:
-                pair_scores.append(float(np.logical_and(in_seg_a, in_seg_b).sum() / union))
+                pair_scores.append(
+                    float(np.logical_and(in_seg_a, in_seg_b).sum() / union)
+                )
         stability[seg_id] = float(np.mean(pair_scores)) if pair_scores else 0.0
 
     return stability
@@ -293,10 +295,7 @@ def _top_features_for_segment(
     seg_means = X[mask].mean()
     deviation = (seg_means - global_means).abs().sort_values(ascending=False)
     top_cols = deviation.head(n_top).index.tolist()
-    return {
-        col: (float(seg_means[col]), float(global_means[col]))
-        for col in top_cols
-    }
+    return {col: (float(seg_means[col]), float(global_means[col])) for col in top_cols}
 
 
 def _describe_segment(
@@ -321,9 +320,7 @@ def _describe_segment(
         Prose description string.
     """
     size_label = (
-        "large" if size_pct > 0.35
-        else "mid-sized" if size_pct > 0.15
-        else "small"
+        "large" if size_pct > 0.35 else "mid-sized" if size_pct > 0.15 else "small"
     )
     pct_str = f"{size_pct * 100:.0f}%"
     lift_str = f"{lift:+.3f}"
@@ -332,7 +329,9 @@ def _describe_segment(
     if top_features:
         feat_name, (seg_val, glob_val) = next(iter(top_features.items()))
         direction = "above" if seg_val > glob_val else "below"
-        feat_desc = f" with {feat_name} {direction} average ({seg_val:.2f} vs {glob_val:.2f})"
+        feat_desc = (
+            f" with {feat_name} {direction} average ({seg_val:.2f} vs {glob_val:.2f})"
+        )
     else:
         feat_desc = ""
 
@@ -362,14 +361,20 @@ def _build_overall_recommendation(
 
     parts: list[str] = []
     if rollout:
-        parts.append(f"Roll out to segment{'s' if len(rollout) > 1 else ''} "
-                     f"{', '.join(str(i) for i in rollout)}.")
+        parts.append(
+            f"Roll out to segment{'s' if len(rollout) > 1 else ''} "
+            f"{', '.join(str(i) for i in rollout)}."
+        )
     if investigate:
-        parts.append(f"Investigate segment{'s' if len(investigate) > 1 else ''} "
-                     f"{', '.join(str(i) for i in investigate)} (inconclusive).")
+        parts.append(
+            f"Investigate segment{'s' if len(investigate) > 1 else ''} "
+            f"{', '.join(str(i) for i in investigate)} (inconclusive)."
+        )
     if avoid:
-        parts.append(f"Avoid segment{'s' if len(avoid) > 1 else ''} "
-                     f"{', '.join(str(i) for i in avoid)} (negative lift).")
+        parts.append(
+            f"Avoid segment{'s' if len(avoid) > 1 else ''} "
+            f"{', '.join(str(i) for i in avoid)} (negative lift)."
+        )
     if not parts:
         parts.append("No segments with clear positive lift; consider running longer.")
 
@@ -474,23 +479,27 @@ def discover_segments(
 
         lift, significant = _compute_segment_lift(mask, treatment, outcome)
         lift_runs_for_seg = lift_runs.get(seg_id, [])
-        lift_uncertainty = float(np.std(lift_runs_for_seg)) if lift_runs_for_seg else 0.0
+        lift_uncertainty = (
+            float(np.std(lift_runs_for_seg)) if lift_runs_for_seg else 0.0
+        )
 
         top_features = _top_features_for_segment(X, mask)
         description = _describe_segment(
             seg_id, size_pct, lift, significant, top_features, low_confidence
         )
 
-        segments.append(SegmentProfile(
-            id=seg_id,
-            size_pct=size_pct,
-            lift=lift,
-            lift_uncertainty=lift_uncertainty,
-            description=description,
-            top_features=top_features,
-            significant=significant,
-            low_confidence=low_confidence,
-        ))
+        segments.append(
+            SegmentProfile(
+                id=seg_id,
+                size_pct=size_pct,
+                lift=lift,
+                lift_uncertainty=lift_uncertainty,
+                description=description,
+                top_features=top_features,
+                significant=significant,
+                low_confidence=low_confidence,
+            )
+        )
 
     responsive_segments = [s.id for s in segments if s.significant and s.lift > 0]
     recommendation = _build_overall_recommendation(segments, overall_lift)

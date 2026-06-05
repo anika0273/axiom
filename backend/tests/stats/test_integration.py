@@ -47,20 +47,20 @@ from app.stats.testing import run_proportion_test
 # Scenario constants
 # ---------------------------------------------------------------------------
 
-BASELINE_RATE = 0.05   # 5% purchase conversion
-MDE = 0.01             # detect 5% → 6% (1 pp absolute)
+BASELINE_RATE = 0.05  # 5% purchase conversion
+MDE = 0.01  # detect 5% → 6% (1 pp absolute)
 ALPHA = 0.05
 POWER_TARGET = 0.80
 
-N_PER_GROUP = 5_000    # users observed at the interim look
-N_PLANNED = 10_000     # per-group target for the full experiment (2-look plan)
+N_PER_GROUP = 5_000  # users observed at the interim look
+N_PLANNED = 10_000  # per-group target for the full experiment (2-look plan)
 
 # Primary metric — conversions in each group
-CONTROL_CONVERSIONS = 250    # 5.0% (= 250 / 5,000)
+CONTROL_CONVERSIONS = 250  # 5.0% (= 250 / 5,000)
 TREATMENT_CONVERSIONS = 325  # 6.5% (= 325 / 5,000); 1.5× the MDE, well-powered
 
 # Add-to-cart — null metric (noisy, no real effect)
-ADD_TO_CART_CTRL = 750   # 15.0%
+ADD_TO_CART_CTRL = 750  # 15.0%
 ADD_TO_CART_TRTMT = 775  # 15.5% (+0.5 pp; not significant)
 
 # Fully synthetic null p-values for the remaining two metrics
@@ -86,8 +86,10 @@ def pipeline() -> SimpleNamespace:
     # ── Stage 3: Primary metric proportion test ──────────────────────────────
     # Computed before sequential so the z-stat is available for stage 2.
     prop_result = run_proportion_test(
-        CONTROL_CONVERSIONS, n,
-        TREATMENT_CONVERSIONS, n,
+        CONTROL_CONVERSIONS,
+        n,
+        TREATMENT_CONVERSIONS,
+        n,
         ALPHA,
     )
 
@@ -100,43 +102,47 @@ def pipeline() -> SimpleNamespace:
     )
     seq_decision = evaluate_interim_look(
         current_z=prop_result.test_statistic,
-        current_n=n,      # 5,000 of 10,000 planned → t = 0.5
+        current_n=n,  # 5,000 of 10,000 planned → t = 0.5
         boundaries=boundaries,
     )
 
     # ── Stage 4: CUPED on revenue metric ────────────────────────────────────
     # pre ~ N(10, 5) for both groups; post = 0.6×pre + N(0,4); treatment +0.3.
     pre_ctrl = rng.normal(10, 5, n)
-    pre_trt  = rng.normal(10, 5, n)
-    pre_all  = np.concatenate([pre_ctrl, pre_trt])
+    pre_trt = rng.normal(10, 5, n)
+    pre_all = np.concatenate([pre_ctrl, pre_trt])
 
-    noise    = rng.normal(0, 4, 2 * n)
+    noise = rng.normal(0, 4, 2 * n)
     post_all = 0.6 * pre_all + noise
-    post_all[n:] += 0.3   # treatment uplift: +0.3 units on a mean ≈ 10
+    post_all[n:] += 0.3  # treatment uplift: +0.3 units on a mean ≈ 10
 
     assignment = [0] * n + [1] * n
 
-    cuped_result       = apply_cuped(pre_all.tolist(), post_all.tolist(), assignment)
-    var_reduction_est  = estimate_variance_reduction(pre_all.tolist(), post_all.tolist())
+    cuped_result = apply_cuped(pre_all.tolist(), post_all.tolist(), assignment)
+    var_reduction_est = estimate_variance_reduction(pre_all.tolist(), post_all.tolist())
 
     # ── Stage 5: BH correction on 5 metrics ─────────────────────────────────
     add_to_cart_result = run_proportion_test(
-        ADD_TO_CART_CTRL, n,
-        ADD_TO_CART_TRTMT, n,
+        ADD_TO_CART_CTRL,
+        n,
+        ADD_TO_CART_TRTMT,
+        n,
         ALPHA,
     )
 
-    p_values = np.array([
-        prop_result.p_value,                        # [0] conversion   (significant)
-        cuped_result.adjusted_test_result.p_value,  # [1] revenue CUPED (significant)
-        add_to_cart_result.p_value,                 # [2] add-to-cart   (null)
-        P_SESSION_DURATION,                         # [3] session dur.  (null)
-        P_RETURN_VISITS,                            # [4] return visits (null)
-    ])
+    p_values = np.array(
+        [
+            prop_result.p_value,  # [0] conversion   (significant)
+            cuped_result.adjusted_test_result.p_value,  # [1] revenue CUPED (significant)
+            add_to_cart_result.p_value,  # [2] add-to-cart   (null)
+            P_SESSION_DURATION,  # [3] session dur.  (null)
+            P_RETURN_VISITS,  # [4] return visits (null)
+        ]
+    )
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        bh_result  = apply_multiple_correction(p_values, "fdr_bh", ALPHA)
+        bh_result = apply_multiple_correction(p_values, "fdr_bh", ALPHA)
         comparison = compare_corrections(p_values, ALPHA)
 
     return SimpleNamespace(
@@ -205,8 +211,10 @@ class TestSequentialAnalysis:
 
     def test_interim_boundary_exact_value(self, pipeline: SimpleNamespace) -> None:
         """z*(0.5) = z_crit / √0.5 = norm.ppf(0.975) / √0.5 ≈ 2.772."""
-        expected = norm.ppf(0.975) / (0.5 ** 0.5)
-        assert pipeline.boundaries.z_boundary_per_look[0] == pytest.approx(expected, rel=1e-5)
+        expected = norm.ppf(0.975) / (0.5**0.5)
+        assert pipeline.boundaries.z_boundary_per_look[0] == pytest.approx(
+            expected, rel=1e-5
+        )
 
     def test_final_boundary_equals_uncorrected_z(
         self, pipeline: SimpleNamespace
@@ -306,16 +314,16 @@ class TestCupedVarianceReduction:
     ) -> None:
         """CUPED shrinks SE → the adjusted CI is strictly narrower."""
         adj_lo, adj_hi = pipeline.cuped_result.adjusted_test_result.confidence_interval
-        unadj_lo, unadj_hi = pipeline.cuped_result.unadjusted_test_result.confidence_interval
+        unadj_lo, unadj_hi = (
+            pipeline.cuped_result.unadjusted_test_result.confidence_interval
+        )
         assert (adj_hi - adj_lo) < (unadj_hi - unadj_lo)
 
-    def test_adjusted_z_larger_than_unadjusted(
-        self, pipeline: SimpleNamespace
-    ) -> None:
+    def test_adjusted_z_larger_than_unadjusted(self, pipeline: SimpleNamespace) -> None:
         """Smaller SE → larger |z|; CUPED strictly improves power.
         Compare z-statistics rather than p-values because both can underflow
         to 0.0 at this effect size (n=5,000, d≈0.06 adjusted)."""
-        z_adj   = abs(pipeline.cuped_result.adjusted_test_result.test_statistic)
+        z_adj = abs(pipeline.cuped_result.adjusted_test_result.test_statistic)
         z_unadj = abs(pipeline.cuped_result.unadjusted_test_result.test_statistic)
         assert z_adj > z_unadj
 
@@ -325,10 +333,11 @@ class TestCupedVarianceReduction:
 
     def test_cuped_preserves_lift(self, pipeline: SimpleNamespace) -> None:
         """CUPED adjustment is unbiased: adjusted lift ≈ raw lift.
-        Residual difference is theta × (mean_pre_trt − mean_pre_ctrl) ≈ 0.6 × 0.07 ≈ 0.04."""
+        Residual difference is theta × (mean_pre_trt − mean_pre_ctrl) ≈ 0.6 × 0.07 ≈ 0.04.
+        """
         ctrl = pipeline.cuped_result.control_summary
-        trt  = pipeline.cuped_result.treatment_summary
-        raw_lift = trt.post_mean     - ctrl.post_mean
+        trt = pipeline.cuped_result.treatment_summary
+        raw_lift = trt.post_mean - ctrl.post_mean
         adj_lift = trt.adjusted_mean - ctrl.adjusted_mean
         assert abs(raw_lift - adj_lift) < 0.20
 
@@ -355,9 +364,7 @@ class TestMultiMetricBHCorrection:
         """Add-to-cart effect is noise; should not survive BH."""
         assert not pipeline.bh_result.reject_mask[2]
 
-    def test_session_duration_does_not_survive(
-        self, pipeline: SimpleNamespace
-    ) -> None:
+    def test_session_duration_does_not_survive(self, pipeline: SimpleNamespace) -> None:
         assert not pipeline.bh_result.reject_mask[3]
 
     def test_return_visits_does_not_survive(self, pipeline: SimpleNamespace) -> None:
@@ -373,11 +380,12 @@ class TestMultiMetricBHCorrection:
         self, pipeline: SimpleNamespace
     ) -> None:
         """Bonferroni ≤ BH in number of rejections (BH is uniformly more powerful)."""
-        assert pipeline.comparison.bonferroni.n_rejected <= pipeline.comparison.fdr_bh.n_rejected
+        assert (
+            pipeline.comparison.bonferroni.n_rejected
+            <= pipeline.comparison.fdr_bh.n_rejected
+        )
 
-    def test_comparison_summary_is_informative(
-        self, pipeline: SimpleNamespace
-    ) -> None:
+    def test_comparison_summary_is_informative(self, pipeline: SimpleNamespace) -> None:
         """Summary should name the most and least powerful methods."""
         summary = pipeline.comparison.summary.lower()
         assert "most powerful" in summary or "all methods agree" in summary
@@ -407,9 +415,7 @@ class TestCrossStageConsistency:
         """The proportion test p-value must be p_values[0]."""
         assert pipeline.p_values[0] == pytest.approx(pipeline.prop_result.p_value)
 
-    def test_cuped_p_value_is_second_bh_input(
-        self, pipeline: SimpleNamespace
-    ) -> None:
+    def test_cuped_p_value_is_second_bh_input(self, pipeline: SimpleNamespace) -> None:
         """The CUPED adjusted p-value must be p_values[1]."""
         assert pipeline.p_values[1] == pytest.approx(
             pipeline.cuped_result.adjusted_test_result.p_value
@@ -434,7 +440,7 @@ class TestCrossStageConsistency:
     ) -> None:
         """CUPED-adjusted z (feeds into BH via p_values[1]) exceeds unadjusted z.
         Compared on z-statistics because both p-values can underflow to 0.0."""
-        z_adj   = abs(pipeline.cuped_result.adjusted_test_result.test_statistic)
+        z_adj = abs(pipeline.cuped_result.adjusted_test_result.test_statistic)
         z_unadj = abs(pipeline.cuped_result.unadjusted_test_result.test_statistic)
         assert z_adj > z_unadj
 

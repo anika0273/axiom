@@ -3,6 +3,7 @@
 Usage (inside container):
     docker compose exec backend python /app/backend/migrations/seeds.py
 """
+
 from __future__ import annotations
 
 import asyncio

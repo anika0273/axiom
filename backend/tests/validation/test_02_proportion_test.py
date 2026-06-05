@@ -17,6 +17,7 @@ Failure diagnosis
 • CI mismatch      → pooled SE used for CI instead of unpooled SE.
 • reject mismatch  → comparison operator (< vs <=) or alpha applied incorrectly.
 """
+
 from __future__ import annotations
 
 import math
@@ -30,12 +31,14 @@ from app.stats.testing import run_proportion_test
 from tests.validation._report import record
 
 _MODULE = "proportion_test"
-_STAT_TOL = 0.001   # tolerance on z-stat and p-value
-_CI_TOL = 0.001     # tolerance on CI endpoints
+_STAT_TOL = 0.001  # tolerance on z-stat and p-value
+_CI_TOL = 0.001  # tolerance on CI endpoints
 _REJECT_EXACT = True  # categorical decision must match exactly
 
 
-def _manual_ci(sc: int, nc: int, st: int, nt: int, alpha: float = 0.05) -> tuple[float, float]:
+def _manual_ci(
+    sc: int, nc: int, st: int, nt: int, alpha: float = 0.05
+) -> tuple[float, float]:
     """Wald CI with unpooled SE (independent of statsmodels)."""
     p_c = sc / nc
     p_t = st / nt
@@ -107,7 +110,7 @@ def _run_scenario(
         scenario=label,
         expected=f"z={ref_z:.4f}, p={ref_p:.4f}, reject={ref_reject}",
         observed=f"z={result.test_statistic:.4f}, p={result.p_value:.4f}, "
-                 f"reject={result.is_significant}",
+        f"reject={result.is_significant}",
         delta=f"Δz={dz:.2e}, Δp={dp:.2e}",
         tolerance=f"≤{_STAT_TOL}",
         passed=all_pass,
@@ -130,8 +133,10 @@ def test_p1_no_effect_small() -> None:
     """
     _run_scenario(
         label="P1: 10%→10.5%, n=1 000, not significant",
-        control_n=1000, control_s=100,
-        treatment_n=1000, treatment_s=105,
+        control_n=1000,
+        control_s=100,
+        treatment_n=1000,
+        treatment_s=105,
         notes="Small absolute difference; normal approximation is valid (n>30, successes>5).",
     )
 
@@ -144,8 +149,10 @@ def test_p2_significant_clear() -> None:
     """
     _run_scenario(
         label="P2: 5%→6%, n=5 000, significant",
-        control_n=5000, control_s=250,
-        treatment_n=5000, treatment_s=300,
+        control_n=5000,
+        control_s=250,
+        treatment_n=5000,
+        treatment_s=300,
         notes="Standard e-commerce uplift scenario; p should be ≈ 0.028.",
     )
 
@@ -158,8 +165,10 @@ def test_p3_high_conversion_large_n() -> None:
     """
     _run_scenario(
         label="P3: 40%→43%, n=10 000, highly significant",
-        control_n=10000, control_s=4000,
-        treatment_n=10000, treatment_s=4300,
+        control_n=10000,
+        control_s=4000,
+        treatment_n=10000,
+        treatment_s=4300,
         notes="Large n and high rate; p << 0.05.",
     )
 
@@ -197,7 +206,7 @@ def test_p4_low_event_count_warning() -> None:
         scenario="P4: 3%→5%, n=100, low event count warning",
         expected=f"z={float(ref_z):.4f}, p={float(ref_p):.4f}, has_low_conv_warning=True",
         observed=f"z={result.test_statistic:.4f}, p={result.p_value:.4f}, "
-                 f"has_low_conv_warning={has_warning}",
+        f"has_low_conv_warning={has_warning}",
         delta=f"Δz={dz:.2e}, Δp={dp:.2e}",
         tolerance=f"Δ≤{_STAT_TOL}, warning required",
         passed=passed,
@@ -207,6 +216,6 @@ def test_p4_low_event_count_warning() -> None:
 
     assert dz <= _STAT_TOL, f"z-stat off by {dz:.6f}"
     assert dp <= _STAT_TOL, f"p-value off by {dp:.6f}"
-    assert has_warning, (
-        f"Expected 'low conversions' warning; got: {result.sample_warnings}"
-    )
+    assert (
+        has_warning
+    ), f"Expected 'low conversions' warning; got: {result.sample_warnings}"

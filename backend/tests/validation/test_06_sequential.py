@@ -38,6 +38,7 @@ Failure diagnosis
 • Monotonicity violated: z* not divided by sqrt(t) — constant boundary used.
 • Decision mismatch: comparison operators or sign convention wrong.
 """
+
 from __future__ import annotations
 
 import math
@@ -98,7 +99,9 @@ def test_seq1_boundary_values_five_looks() -> None:
         delta = abs(obs - ref)
         if delta > _TOL:
             all_pass = False
-            failures.append(f"look {k} (t={t:.1f}): ref={ref:.4f}, obs={obs:.4f}, Δ={delta:.4f}")
+            failures.append(
+                f"look {k} (t={t:.1f}): ref={ref:.4f}, obs={obs:.4f}, Δ={delta:.4f}"
+            )
 
     likely = ""
     if not all_pass:
@@ -208,9 +211,9 @@ def test_seq3_monotonicity_early_stricter() -> None:
     # Also validate: final boundary ≈ z_0.025 = 1.96
     final_z = z_vals[-1]
     ref_final = float(norm.ppf(0.975))
-    assert abs(final_z - ref_final) <= _TOL, (
-        f"Final boundary {final_z:.4f} should ≈ 1.960 (z_0.025={ref_final:.4f})"
-    )
+    assert (
+        abs(final_z - ref_final) <= _TOL
+    ), f"Final boundary {final_z:.4f} should ≈ 1.960 (z_0.025={ref_final:.4f})"
 
 
 def test_seq4_decision_logic() -> None:
@@ -234,8 +237,8 @@ def test_seq4_decision_logic() -> None:
     current_n = 2000
 
     cases = [
-        ("stop_win",  3.5,  "STOP_WIN",  "z > efficacy boundary"),
-        ("continue",  1.5,  "CONTINUE",  "z between futility and efficacy"),
+        ("stop_win", 3.5, "STOP_WIN", "z > efficacy boundary"),
+        ("continue", 1.5, "CONTINUE", "z between futility and efficacy"),
         ("stop_lose", 0.05, "STOP_LOSE", "z near zero → futility"),
     ]
 

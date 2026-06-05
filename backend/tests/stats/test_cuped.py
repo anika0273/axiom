@@ -103,7 +103,9 @@ class TestApplyCuped:
     def test_group_n_users_sum_to_total(self, high_corr_data) -> None:
         pre, post, assign = high_corr_data
         result = apply_cuped(pre, post, assign)
-        assert result.control_summary.n_users + result.treatment_summary.n_users == len(pre)
+        assert result.control_summary.n_users + result.treatment_summary.n_users == len(
+            pre
+        )
 
     def test_group_names_are_correct(self, high_corr_data) -> None:
         pre, post, assign = high_corr_data
@@ -186,9 +188,7 @@ class TestApplyCuped:
         result = apply_cuped(pre, post, assign)
         assert result.variance_reduction_pct >= 0.0
 
-    def test_both_test_results_are_test_result_instances(
-        self, high_corr_data
-    ) -> None:
+    def test_both_test_results_are_test_result_instances(self, high_corr_data) -> None:
         from app.stats.testing import TestResult
 
         pre, post, assign = high_corr_data

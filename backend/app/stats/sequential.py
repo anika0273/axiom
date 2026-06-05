@@ -301,17 +301,11 @@ def compute_obrien_fleming_boundaries(
             0.05
     """
     if total_planned_n <= 0:
-        raise ValueError(
-            f"total_planned_n must be positive, got {total_planned_n}."
-        )
+        raise ValueError(f"total_planned_n must be positive, got {total_planned_n}.")
     if n_interim_looks < 1:
-        raise ValueError(
-            f"n_interim_looks must be ≥ 1, got {n_interim_looks}."
-        )
+        raise ValueError(f"n_interim_looks must be ≥ 1, got {n_interim_looks}.")
     if not (0.0 < alpha < 1.0):
-        raise ValueError(
-            f"alpha must be in (0, 1), got {alpha}."
-        )
+        raise ValueError(f"alpha must be in (0, 1), got {alpha}.")
 
     info_fractions = [k / n_interim_looks for k in range(1, n_interim_looks + 1)]
 

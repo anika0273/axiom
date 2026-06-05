@@ -131,13 +131,9 @@ def _validate_and_convert(
             f"Found unexpected values: {bad}"
         )
     if not np.any(a == 0):
-        raise ValueError(
-            "No control users found (treatment_assignment has no 0s)."
-        )
+        raise ValueError("No control users found (treatment_assignment has no 0s).")
     if not np.any(a == 1):
-        raise ValueError(
-            "No treatment users found (treatment_assignment has no 1s)."
-        )
+        raise ValueError("No treatment users found (treatment_assignment has no 1s).")
 
     return x, y, a
 
@@ -200,7 +196,7 @@ def recommend_cuped(correlation: float) -> str:
     """
     abs_r = abs(correlation)
     # Variance reduction is r^2 (see module docstring for derivation)
-    variance_reduction = abs_r ** 2 * 100.0
+    variance_reduction = abs_r**2 * 100.0
 
     if abs_r < 0.1:
         return (
@@ -265,7 +261,7 @@ def estimate_variance_reduction(
         )
 
     r = _safe_correlation(x, y)
-    return float(max(0.0, r ** 2 * 100.0))
+    return float(max(0.0, r**2 * 100.0))
 
 
 def apply_cuped(

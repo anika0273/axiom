@@ -1,4 +1,5 @@
 """ORM models for experiments, results, metrics, and AI interactions."""
+
 from __future__ import annotations
 
 import enum
@@ -17,6 +18,7 @@ from app.db.base import Base
 
 
 # ── Enum definitions ──────────────────────────────────────────────────────────
+
 
 class ExperimentStatus(str, enum.Enum):
     draft = "draft"
@@ -51,6 +53,7 @@ class InteractionType(str, enum.Enum):
 
 # ── ORM models ────────────────────────────────────────────────────────────────
 
+
 class Experiment(Base):
     """Stores experiment configuration and lifecycle state."""
 
@@ -82,9 +85,15 @@ class Experiment(Base):
     hypothesis: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     baseline_metric: Mapped[float] = mapped_column(sa.Float, nullable=False)
     mde: Mapped[float] = mapped_column(sa.Float, nullable=False)
-    alpha: Mapped[float] = mapped_column(sa.Float, nullable=False, server_default="0.05")
-    power: Mapped[float] = mapped_column(sa.Float, nullable=False, server_default="0.80")
-    daily_traffic_estimate: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
+    alpha: Mapped[float] = mapped_column(
+        sa.Float, nullable=False, server_default="0.05"
+    )
+    power: Mapped[float] = mapped_column(
+        sa.Float, nullable=False, server_default="0.80"
+    )
+    daily_traffic_estimate: Mapped[int | None] = mapped_column(
+        sa.Integer, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True),
         server_default=func.now(),
@@ -118,9 +127,7 @@ class ExperimentResult(Base):
     """Statistical analysis output for one analysis run of an experiment."""
 
     __tablename__ = "experiment_results"
-    __table_args__ = (
-        Index("ix_experiment_results_experiment_id", "experiment_id"),
-    )
+    __table_args__ = (Index("ix_experiment_results_experiment_id", "experiment_id"),)
 
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -147,16 +154,16 @@ class ExperimentResult(Base):
     )
     report_markdown: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
 
-    experiment: Mapped[Experiment] = relationship("Experiment", back_populates="results")
+    experiment: Mapped[Experiment] = relationship(
+        "Experiment", back_populates="results"
+    )
 
 
 class ExperimentMetric(Base):
     """Metric tracked for an experiment (primary, secondary, or guardrail)."""
 
     __tablename__ = "experiment_metrics"
-    __table_args__ = (
-        Index("ix_experiment_metrics_experiment_id", "experiment_id"),
-    )
+    __table_args__ = (Index("ix_experiment_metrics_experiment_id", "experiment_id"),)
 
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -177,16 +184,16 @@ class ExperimentMetric(Base):
         sa.Boolean, nullable=False, server_default="false"
     )
 
-    experiment: Mapped[Experiment] = relationship("Experiment", back_populates="metrics")
+    experiment: Mapped[Experiment] = relationship(
+        "Experiment", back_populates="metrics"
+    )
 
 
 class AIInteraction(Base):
     """Log of Claude API calls associated with experiment analysis."""
 
     __tablename__ = "ai_interactions"
-    __table_args__ = (
-        Index("ix_ai_interactions_experiment_id", "experiment_id"),
-    )
+    __table_args__ = (Index("ix_ai_interactions_experiment_id", "experiment_id"),)
 
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),

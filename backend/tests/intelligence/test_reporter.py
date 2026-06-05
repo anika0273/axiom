@@ -211,7 +211,9 @@ async def test_report_contains_all_8_sections():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Test Experiment",
             stats_result=_sig_stats(),
@@ -231,7 +233,9 @@ async def test_section_8_is_programmatic():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Test Experiment",
             stats_result=stats,
@@ -252,7 +256,9 @@ async def test_sections_1_to_7_are_ai_generated():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Test Experiment",
             stats_result=_sig_stats(),
@@ -260,7 +266,9 @@ async def test_sections_1_to_7_are_ai_generated():
         )
 
     for section in report.sections[:7]:
-        assert section.is_ai_generated, f"Section {section.section_number} should be AI-generated"
+        assert (
+            section.is_ai_generated
+        ), f"Section {section.section_number} should be AI-generated"
 
 
 @pytest.mark.asyncio
@@ -270,7 +278,9 @@ async def test_sections_1_to_7_contain_no_pvalues():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Test Experiment",
             stats_result=_sig_stats(),
@@ -279,9 +289,9 @@ async def test_sections_1_to_7_contain_no_pvalues():
 
     pvalue_pattern = re.compile(r"\bp[\s]*[=<>]+\s*0\.\d+|\bp-value\b", re.IGNORECASE)
     for section in report.sections[:7]:
-        assert not pvalue_pattern.search(section.content), (
-            f"Section {section.section_number} contains p-value jargon: {section.content[:200]}"
-        )
+        assert not pvalue_pattern.search(
+            section.content
+        ), f"Section {section.section_number} contains p-value jargon: {section.content[:200]}"
 
 
 # ---------------------------------------------------------------------------
@@ -296,7 +306,9 @@ async def test_ship_recommendation_when_significant_valid_stable():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Checkout Redesign",
             stats_result=_sig_stats(),
@@ -320,7 +332,9 @@ async def test_do_not_ship_when_not_significant():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Button Color Test",
             stats_result=_nonsig_stats(),
@@ -344,7 +358,9 @@ async def test_extend_when_novelty_detected():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Checkout Redesign",
             stats_result=sig_stats,
@@ -367,7 +383,9 @@ async def test_investigate_when_invalid():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Checkout Redesign",
             stats_result=_sig_stats(),
@@ -385,21 +403,27 @@ async def test_investigate_when_invalid():
 def test_grounding_validator_overrides_ship_on_nonsig():
     """Validator must override SHIP to EXTEND when is_significant=False."""
     tool_out = _make_tool_output(recommendation="SHIP")
-    fixed = _validate_grounding(tool_out, _nonsig_stats(), _clean_ml(), daily_revenue=None)
+    fixed = _validate_grounding(
+        tool_out, _nonsig_stats(), _clean_ml(), daily_revenue=None
+    )
     assert fixed["recommendation"] == "EXTEND"
 
 
 def test_grounding_validator_overrides_ship_when_invalid():
     """Validator must override SHIP to INVESTIGATE when can_trust_results=False."""
     tool_out = _make_tool_output(recommendation="SHIP")
-    fixed = _validate_grounding(tool_out, _sig_stats(), _invalid_ml(), daily_revenue=None)
+    fixed = _validate_grounding(
+        tool_out, _sig_stats(), _invalid_ml(), daily_revenue=None
+    )
     assert fixed["recommendation"] == "INVESTIGATE"
 
 
 def test_grounding_validator_overrides_ship_when_novelty():
     """Validator must override SHIP to EXTEND when novelty_pattern=NOVELTY."""
     tool_out = _make_tool_output(recommendation="SHIP")
-    fixed = _validate_grounding(tool_out, _sig_stats(), _novelty_ml(), daily_revenue=None)
+    fixed = _validate_grounding(
+        tool_out, _sig_stats(), _novelty_ml(), daily_revenue=None
+    )
     assert fixed["recommendation"] == "EXTEND"
 
 
@@ -430,7 +454,9 @@ def test_grounding_validator_precedence_invalid_beats_novelty():
         novelty_pattern="NOVELTY",
     )
     tool_out = _make_tool_output(recommendation="SHIP")
-    fixed = _validate_grounding(tool_out, _sig_stats(), novelty_and_invalid, daily_revenue=None)
+    fixed = _validate_grounding(
+        tool_out, _sig_stats(), novelty_and_invalid, daily_revenue=None
+    )
     # can_trust_results=False is checked first, so INVESTIGATE wins
     assert fixed["recommendation"] == "INVESTIGATE"
 
@@ -532,16 +558,18 @@ async def test_word_count_between_400_and_800():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Word Count Test",
             stats_result=_sig_stats(),
             ml_result=_clean_ml(),
         )
 
-    assert 400 <= report.word_count <= 800, (
-        f"word_count={report.word_count} is outside the 400–800 target range"
-    )
+    assert (
+        400 <= report.word_count <= 800
+    ), f"word_count={report.word_count} is outside the 400–800 target range"
 
 
 def test_fallback_word_count_between_400_and_800():
@@ -552,9 +580,9 @@ def test_fallback_word_count_between_400_and_800():
         ml_result=_clean_ml(),
         daily_revenue=10000.0,
     )
-    assert 400 <= report.word_count <= 800, (
-        f"fallback word_count={report.word_count} is outside the 400–800 target range"
-    )
+    assert (
+        400 <= report.word_count <= 800
+    ), f"fallback word_count={report.word_count} is outside the 400–800 target range"
 
 
 # ---------------------------------------------------------------------------
@@ -569,7 +597,9 @@ async def test_report_metadata_fields():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Metadata Test",
             stats_result=_sig_stats(),
@@ -591,7 +621,9 @@ async def test_ai_and_programmatic_section_lists():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Section List Test",
             stats_result=_sig_stats(),
@@ -613,7 +645,9 @@ async def test_fallback_triggered_on_api_error():
         side_effect=anthropic_module.APITimeoutError(request=MagicMock())
     )
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Error Test",
             stats_result=_sig_stats(),
@@ -632,7 +666,9 @@ async def test_markdown_and_html_content_populated():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Content Test",
             stats_result=_sig_stats(),
@@ -660,7 +696,9 @@ async def test_daily_revenue_reflected_in_report():
     client_mock = MagicMock()
     client_mock.messages.create = AsyncMock(return_value=mock_resp)
 
-    with patch("app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock):
+    with patch(
+        "app.intelligence.reporter.anthropic.AsyncAnthropic", return_value=client_mock
+    ):
         report = await generate_report(
             experiment_name="Revenue Test",
             stats_result=sig,

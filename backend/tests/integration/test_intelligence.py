@@ -11,6 +11,7 @@ Each test:
 
 Markers: @pytest.mark.integration
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -112,12 +113,13 @@ async def test_planner_checkout_experiment(require_real_api_key, db_session) -> 
             f"value {expected.control_size} by {pct_diff:.1%} (limit: 15%)"
         )
 
-        assert result.confidence in ("high", "medium"), (
-            f"Expected confidence 'high' or 'medium', got '{result.confidence}'"
-        )
-        assert len(result.plan.risks) >= 2, (
-            f"Expected >= 2 risks, got {len(result.plan.risks)}"
-        )
+        assert result.confidence in (
+            "high",
+            "medium",
+        ), f"Expected confidence 'high' or 'medium', got '{result.confidence}'"
+        assert (
+            len(result.plan.risks) >= 2
+        ), f"Expected >= 2 risks, got {len(result.plan.risks)}"
         assert result.plan.statistical_config.alpha == 0.05
         assert result.prompt_version.startswith("planner_v")
 
@@ -139,16 +141,18 @@ async def test_planner_vague_input() -> None:
             db=None,
         )
 
-        assert result.needs_clarification is True, (
-            "Vague input should trigger needs_clarification=True"
-        )
-        assert len(result.clarifying_questions) >= 3, (
-            f"Expected >= 3 clarifying questions, got {len(result.clarifying_questions)}"
-        )
-        assert result.plan is None, "No plan should be returned when clarification needed"
-        assert result.confidence == "low", (
-            f"Expected confidence='low' for vague input, got '{result.confidence}'"
-        )
+        assert (
+            result.needs_clarification is True
+        ), "Vague input should trigger needs_clarification=True"
+        assert (
+            len(result.clarifying_questions) >= 3
+        ), f"Expected >= 3 clarifying questions, got {len(result.clarifying_questions)}"
+        assert (
+            result.plan is None
+        ), "No plan should be returned when clarification needed"
+        assert (
+            result.confidence == "low"
+        ), f"Expected confidence='low' for vague input, got '{result.confidence}'"
 
     await _retry_once(_run)
 
@@ -168,9 +172,9 @@ async def test_planner_injection_rejected(db_session) -> None:
 
     # No new row should exist — rejection happens before the Claude API call
     after_count = await count_ai_interactions(db_session)
-    assert after_count == before_count, (
-        "Injection-rejected input must not create an ai_interactions row"
-    )
+    assert (
+        after_count == before_count
+    ), "Injection-rejected input must not create an ai_interactions row"
 
 
 # ===========================================================================
@@ -201,20 +205,26 @@ async def test_interpreter_significant_result(saas_stats, saas_ml) -> None:
         assert len(words) < 350, f"Text too long: {len(words)} words"
 
         lower = full_text.lower()
-        assert "significant" in lower, "'significant' not mentioned in significant result"
+        assert (
+            "significant" in lower
+        ), "'significant' not mentioned in significant result"
 
         # Result IS significant — should not say "do not ship" or "don't ship"
-        assert "do not ship" not in lower, "Should not recommend against shipping significant result"
-        assert "don't ship" not in lower, "Should not recommend against shipping significant result"
+        assert (
+            "do not ship" not in lower
+        ), "Should not recommend against shipping significant result"
+        assert (
+            "don't ship" not in lower
+        ), "Should not recommend against shipping significant result"
 
         # Grounding: no fabricated lift % (saas lift_pct is 31.39%)
         expected_lift = abs(saas_stats.lift_pct)
         for pct_str in re.findall(r"(\d+\.?\d*)%", full_text):
             val = float(pct_str)
             if val > 2.0:  # ignore small percentages like "95%"
-                assert abs(val - expected_lift) <= 5.0, (
-                    f"Fabricated lift {val}% mentioned; expected ~{expected_lift:.1f}%"
-                )
+                assert (
+                    abs(val - expected_lift) <= 5.0
+                ), f"Fabricated lift {val}% mentioned; expected ~{expected_lift:.1f}%"
                 break  # only check the first substantive percentage
 
     await _retry_once(_run)
@@ -240,31 +250,43 @@ async def test_interpreter_invalid_result(ecommerce_stats, ecommerce_ml) -> None
         lower = full_text.lower()
 
         # Must communicate data invalidity
-        invalid_signals = {"invalid", "cannot trust", "can't trust", "integrity", "data quality"}
-        assert any(sig in lower for sig in invalid_signals), (
-            f"Expected invalidity signal in text; got: {full_text[:300]!r}"
-        )
+        invalid_signals = {
+            "invalid",
+            "cannot trust",
+            "can't trust",
+            "integrity",
+            "data quality",
+        }
+        assert any(
+            sig in lower for sig in invalid_signals
+        ), f"Expected invalidity signal in text; got: {full_text[:300]!r}"
 
         # Must NOT contain a bare SHIP recommendation.
         # "shipping decision", "shipment" etc. are acceptable — only a standalone
         # "SHIP" recommendation verb is forbidden.
         import re as _re
+
         for m in _re.finditer(r"\bship\b", lower):
             # Skip derivatives: "shipping", "shipment", "shipyard" etc.
-            tail = lower[m.end(): m.end() + 5]
+            tail = lower[m.end() : m.end() + 5]
             if _re.match(r"(?:ping|ment|yard|per)", tail):
                 continue
             # Standalone "ship" must appear in a negation context
-            ctx = lower[max(0, m.start() - 20): m.end() + 30]
-            assert any(neg in ctx for neg in ("not", "do not", "cannot", "do_not", "investigat")), (
-                f"'SHIP' appears as a recommendation for INVALID data: {ctx!r}"
-            )
+            ctx = lower[max(0, m.start() - 20) : m.end() + 30]
+            assert any(
+                neg in ctx
+                for neg in ("not", "do not", "cannot", "do_not", "investigat")
+            ), f"'SHIP' appears as a recommendation for INVALID data: {ctx!r}"
 
         # Must NOT claim the results are reliable
-        reliability_claims = {"results are reliable", "data is clean", "results can be trusted"}
-        assert not any(claim in lower for claim in reliability_claims), (
-            "Should not claim results are reliable for INVALID dataset"
-        )
+        reliability_claims = {
+            "results are reliable",
+            "data is clean",
+            "results can be trusted",
+        }
+        assert not any(
+            claim in lower for claim in reliability_claims
+        ), "Should not claim results are reliable for INVALID dataset"
 
     await _retry_once(_run)
 
@@ -298,15 +320,15 @@ async def test_interpreter_fallback(saas_stats, saas_ml) -> None:
     assert full_text, "Fallback yielded no text"
 
     # Fallback sentinel must appear
-    assert "template" in full_text.lower() or "unavailable" in full_text.lower(), (
-        "Fallback should be marked as template-based"
-    )
+    assert (
+        "template" in full_text.lower() or "unavailable" in full_text.lower()
+    ), "Fallback should be marked as template-based"
 
     # Fallback headline includes the actual p_value (format: p=0.xxxx)
     expected_pval_str = f"{saas_stats.p_value:.4f}"
-    assert expected_pval_str in full_text, (
-        f"Fallback should include actual p_value {expected_pval_str}; got: {full_text[:300]!r}"
-    )
+    assert (
+        expected_pval_str in full_text
+    ), f"Fallback should include actual p_value {expected_pval_str}; got: {full_text[:300]!r}"
 
 
 # ===========================================================================
@@ -316,7 +338,9 @@ async def test_interpreter_fallback(saas_stats, saas_ml) -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_reporter_all_sections(require_real_api_key, marketplace_stats, marketplace_ml, db_session) -> None:
+async def test_reporter_all_sections(
+    require_real_api_key, marketplace_stats, marketplace_ml, db_session
+) -> None:
     """Marketplace dataset (NEEDS_REVIEW, WARNING anomaly) → 8-section report."""
 
     experiment_name = "Marketplace Fee Structure Test"
@@ -331,9 +355,9 @@ async def test_reporter_all_sections(require_real_api_key, marketplace_stats, ma
         )
 
         # Structural checks
-        assert len(report.sections) == 8, (
-            f"Expected 8 sections, got {len(report.sections)}"
-        )
+        assert (
+            len(report.sections) == 8
+        ), f"Expected 8 sections, got {len(report.sections)}"
         assert len(report.ai_generated_sections) == 7
         assert report.programmatic_sections == ["Technical Appendix"]
 
@@ -348,9 +372,9 @@ async def test_reporter_all_sections(require_real_api_key, marketplace_stats, ma
         # Section 8: must contain the actual p_value
         appendix = next(s for s in report.sections if s.section_number == 8)
         expected_pval_str = f"{marketplace_stats.p_value:.6f}"
-        assert expected_pval_str in appendix.content, (
-            f"Section 8 should contain p_value {expected_pval_str}"
-        )
+        assert (
+            expected_pval_str in appendix.content
+        ), f"Section 8 should contain p_value {expected_pval_str}"
 
         # Recommendation: marketplace is not significant with WARNING anomaly.
         # Per the reporter prompt, DO_NOT_SHIP is expected when is_significant=False
@@ -361,28 +385,30 @@ async def test_reporter_all_sections(require_real_api_key, marketplace_stats, ma
             "result with WARNING anomaly"
         )
 
-        assert report.confidence_level in ("Low", "Medium"), (
-            f"Expected 'Low' or 'Medium' confidence, got '{report.confidence_level}'"
-        )
+        assert report.confidence_level in (
+            "Low",
+            "Medium",
+        ), f"Expected 'Low' or 'Medium' confidence, got '{report.confidence_level}'"
 
-        assert 200 <= report.word_count <= 1200, (
-            f"word_count={report.word_count} outside expected range [200, 1200]"
-        )
+        assert (
+            200 <= report.word_count <= 1200
+        ), f"word_count={report.word_count} outside expected range [200, 1200]"
 
         # DB: at least one new row (generate_report calls _log_to_db)
         after_count = await count_ai_interactions(db_session)
         # Capture before_count once — it's updated by the planner tests in the same session
         # We verify at least one row exists with this experiment name
         from sqlalchemy import select as sa_select, text
+
         result = await db_session.execute(
-            sa_select(AIInteraction).where(
-                AIInteraction.user_prompt == experiment_name
-            ).limit(1)
+            sa_select(AIInteraction)
+            .where(AIInteraction.user_prompt == experiment_name)
+            .limit(1)
         )
         row = result.scalars().first()
-        assert row is not None, (
-            "generate_report should have logged a row to ai_interactions"
-        )
+        assert (
+            row is not None
+        ), "generate_report should have logged a row to ai_interactions"
 
     await _retry_once(_run)
 
@@ -422,9 +448,9 @@ async def test_reporter_recommendation_consistency(caplog) -> None:
                 db=None,
             )
 
-        assert report.recommendation != "SHIP", (
-            "SHIP must never be returned for a non-significant result"
-        )
+        assert (
+            report.recommendation != "SHIP"
+        ), "SHIP must never be returned for a non-significant result"
         assert report.recommendation in ("DO_NOT_SHIP", "EXTEND"), (
             f"Expected DO_NOT_SHIP or EXTEND for non-significant result; "
             f"got '{report.recommendation}'"

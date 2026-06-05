@@ -89,7 +89,9 @@ async def create_plan(
     except PermissionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except TimeoutError:
-        logger.warning("intelligence/plan req=%s timed out — returning fallback questions", req_id)
+        logger.warning(
+            "intelligence/plan req=%s timed out — returning fallback questions", req_id
+        )
         questions = await extract_clarifying_questions(body.description)
         return JSONResponse(
             status_code=504,
@@ -225,7 +227,12 @@ async def stream_interpretation(
     if experiment is None:
         raise HTTPException(
             status_code=404,
-            detail={"error": {"code": "EXPERIMENT_NOT_FOUND", "message": "Experiment not found"}},
+            detail={
+                "error": {
+                    "code": "EXPERIMENT_NOT_FOUND",
+                    "message": "Experiment not found",
+                }
+            },
         )
 
     result = await get_latest_result(db, experiment_id)
@@ -315,7 +322,12 @@ async def generate_experiment_report(
     if experiment is None:
         raise HTTPException(
             status_code=404,
-            detail={"error": {"code": "EXPERIMENT_NOT_FOUND", "message": "Experiment not found"}},
+            detail={
+                "error": {
+                    "code": "EXPERIMENT_NOT_FOUND",
+                    "message": "Experiment not found",
+                }
+            },
         )
 
     result = await get_latest_result(db, experiment_id)
@@ -498,9 +510,7 @@ async def get_usage(
     ).all()
 
     all_rows = (
-        await db.execute(
-            select(*agg_cols).group_by(AIInteraction.interaction_type)
-        )
+        await db.execute(select(*agg_cols).group_by(AIInteraction.interaction_type))
     ).all()
 
     return JSONResponse(

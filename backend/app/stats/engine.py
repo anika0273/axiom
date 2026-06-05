@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 # Thresholds
 # ---------------------------------------------------------------------------
 
-_IMBALANCE_THRESHOLD: float = 0.10   # fraction of larger group
-_LOW_EVENTS_THRESHOLD: int = 5       # minimum events per arm
+_IMBALANCE_THRESHOLD: float = 0.10  # fraction of larger group
+_LOW_EVENTS_THRESHOLD: int = 5  # minimum events per arm
 
 
 # ---------------------------------------------------------------------------
@@ -230,9 +230,9 @@ def _power_analysis_means(
     for mult in np.linspace(0.5, 2.0, 10):
         ni = max(1, int(round(n_per * mult)))
         nc = d * math.sqrt(ni / 2.0)
-        pwr = float(np.clip(
-            scipy_norm.cdf(nc - z_a) + scipy_norm.cdf(-nc - z_a), 0.0, 1.0
-        ))
+        pwr = float(
+            np.clip(scipy_norm.cdf(nc - z_a) + scipy_norm.cdf(-nc - z_a), 0.0, 1.0)
+        )
         curve.append({"n": float(ni), "power": round(pwr, 4)})
 
     return SampleSizeResult(
@@ -300,7 +300,9 @@ def _run_sequential(
     # Estimate planned per-group n: extrapolate from look position if known,
     # otherwise fall back to the power-analysis required n.
     if current_look is not None and current_look > 0:
-        planned_n = max(current_n, int(current_n * config.sequential_looks / current_look))
+        planned_n = max(
+            current_n, int(current_n * config.sequential_looks / current_look)
+        )
     else:
         planned_n = max(current_n, required_sample_size.control_size)
 
@@ -336,16 +338,20 @@ def _run_cuped(
 
     # Build per-user outcome arrays.
     if config.test_type == "proportion":
-        if not isinstance(data.control_success, int) or not isinstance(data.treatment_success, int):
+        if not isinstance(data.control_success, int) or not isinstance(
+            data.treatment_success, int
+        ):
             return None
-        y_ctrl: list[float] = (
-            [1.0] * data.control_success + [0.0] * (data.control_n - data.control_success)
+        y_ctrl: list[float] = [1.0] * data.control_success + [0.0] * (
+            data.control_n - data.control_success
         )
-        y_trt: list[float] = (
-            [1.0] * data.treatment_success + [0.0] * (data.treatment_n - data.treatment_success)
+        y_trt: list[float] = [1.0] * data.treatment_success + [0.0] * (
+            data.treatment_n - data.treatment_success
         )
     else:
-        if not isinstance(data.control_success, list) or not isinstance(data.treatment_success, list):
+        if not isinstance(data.control_success, list) or not isinstance(
+            data.treatment_success, list
+        ):
             return None
         y_ctrl = list(data.control_success)
         y_trt = list(data.treatment_success)
@@ -430,7 +436,11 @@ def _build_recommendation(
             f"{primary_result.interpretation}"
         )
     elif rec == "STOP_LOSE":
-        seq_msg = sequential_status.interpretation if sequential_status else "Insufficient power."
+        seq_msg = (
+            sequential_status.interpretation
+            if sequential_status
+            else "Insufficient power."
+        )
         plain = f"Stop for futility. {seq_msg}"
     elif rec == "RUN":
         current_total = data.control_n + data.treatment_n
@@ -439,10 +449,7 @@ def _build_recommendation(
             if config.planned_n_per_group is not None
             else required_sample_size.total_sample_size
         )
-        seq_msg = (
-            f" {sequential_status.interpretation}"
-            if sequential_status else ""
-        )
+        seq_msg = f" {sequential_status.interpretation}" if sequential_status else ""
         plain = (
             f"Continue the experiment.{seq_msg} "
             f"Current n={current_total:,} vs required n={planned_total:,}."
@@ -544,8 +551,12 @@ def analyze_experiment(
     logger.info(
         "analyze_experiment start: test_type=%s control_n=%d treatment_n=%d "
         "sequential_looks=%d n_metrics=%d has_cuped=%s",
-        config.test_type, data.control_n, data.treatment_n,
-        config.sequential_looks, config.n_metrics, config.has_cuped_data,
+        config.test_type,
+        data.control_n,
+        data.treatment_n,
+        config.sequential_looks,
+        config.n_metrics,
+        config.has_cuped_data,
     )
 
     # ── Stage 1: Power analysis ──────────────────────────────────────────────
@@ -562,9 +573,12 @@ def analyze_experiment(
                 f"got {type(data.treatment_success).__name__}"
             )
         required_sample_size = _power_analysis_proportion(
-            data.control_success, data.control_n,
-            data.treatment_success, data.treatment_n,
-            config.alpha, config.power,
+            data.control_success,
+            data.control_n,
+            data.treatment_success,
+            data.treatment_n,
+            config.alpha,
+            config.power,
         )
     else:
         if not isinstance(data.control_success, list):
@@ -580,7 +594,8 @@ def analyze_experiment(
         required_sample_size = _power_analysis_means(
             np.asarray(data.control_success, dtype=float),
             np.asarray(data.treatment_success, dtype=float),
-            config.alpha, config.power,
+            config.alpha,
+            config.power,
         )
 
     # ── Stage 2: Hypothesis test ─────────────────────────────────────────────
@@ -604,8 +619,12 @@ def analyze_experiment(
     # ── Stage 6: Recommendation ──────────────────────────────────────────────
     logger.info("Stage 6: recommendation")
     overall_recommendation, plain_english = _build_recommendation(
-        config, data, primary_result, sequential_status,
-        corrected_results, required_sample_size,
+        config,
+        data,
+        primary_result,
+        sequential_status,
+        corrected_results,
+        required_sample_size,
     )
 
     analysis_warnings = _collect_warnings(
@@ -614,7 +633,9 @@ def analyze_experiment(
 
     logger.info(
         "analyze_experiment complete: recommendation=%s significant=%s warnings=%d",
-        overall_recommendation, primary_result.is_significant, len(analysis_warnings),
+        overall_recommendation,
+        primary_result.is_significant,
+        len(analysis_warnings),
     )
 
     return ExperimentAnalysis(

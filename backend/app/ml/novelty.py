@@ -32,8 +32,8 @@ logger = logging.getLogger(__name__)
 
 _MIN_DAYS = 7
 _SLOPE_NEAR_ZERO = 0.001  # |slope| below this + CI overlaps zero → STABLE
-_LIFT_CLIP = 1.0           # projected_stable_lift is clamped to [-1, 1]
-_SE_EPSILON = 1e-6         # replaces zero standard errors
+_LIFT_CLIP = 1.0  # projected_stable_lift is clamped to [-1, 1]
+_SE_EPSILON = 1e-6  # replaces zero standard errors
 
 
 @dataclass
@@ -97,7 +97,7 @@ def analyze_effect_trajectory(
     lift = daily_lift.astype(float).values
     days = np.arange(1, n + 1, dtype=float)
     # Weights: 1/se² — days with more data (lower SE) carry more influence.
-    weights = (1.0 / se.values ** 2)
+    weights = 1.0 / se.values**2
 
     slope, intercept, slope_se = _weighted_linregress(days, lift, weights)
 
@@ -231,7 +231,7 @@ def _weighted_linregress(
     residuals = y - (slope * x + intercept)
     n = len(x)
     if n > 2 and Sxx > 0:
-        mse = (w * residuals ** 2).sum() / (n - 2)
+        mse = (w * residuals**2).sum() / (n - 2)
         slope_se = math.sqrt(mse / Sxx)
     else:
         slope_se = 0.0

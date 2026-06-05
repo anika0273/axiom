@@ -3,6 +3,7 @@
 Hooks into ``pytest_sessionfinish`` to write docs/validation_report.md
 automatically whenever any test in this directory runs.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

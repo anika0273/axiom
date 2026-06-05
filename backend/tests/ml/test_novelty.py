@@ -128,7 +128,9 @@ def test_stable_days_to_stable_is_zero() -> None:
 def test_stable_recommendation_says_safe() -> None:
     lift, se = _flat_lift()
     traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
-    assert "stable" in traj.recommendation.lower() or "safe" in traj.recommendation.lower()
+    assert (
+        "stable" in traj.recommendation.lower() or "safe" in traj.recommendation.lower()
+    )
 
 
 def test_stable_projected_lift_close_to_mean() -> None:
@@ -163,7 +165,9 @@ def test_learning_days_to_stable_positive() -> None:
 def test_learning_recommendation_says_improving() -> None:
     lift, se = _increasing_lift()
     traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
-    assert "improving" in traj.recommendation.lower() or "Learning" in traj.recommendation
+    assert (
+        "improving" in traj.recommendation.lower() or "Learning" in traj.recommendation
+    )
 
 
 def test_learning_projected_lift_above_current_mean() -> None:
@@ -213,8 +217,24 @@ def test_insufficient_recommendation_mentions_7_days() -> None:
 
 
 def test_zero_se_does_not_raise() -> None:
-    lift = pd.Series([0.05, 0.04, 0.03, 0.06, 0.05, 0.04, 0.05,
-                      0.05, 0.04, 0.05, 0.06, 0.04, 0.05, 0.05])
+    lift = pd.Series(
+        [
+            0.05,
+            0.04,
+            0.03,
+            0.06,
+            0.05,
+            0.04,
+            0.05,
+            0.05,
+            0.04,
+            0.05,
+            0.06,
+            0.04,
+            0.05,
+            0.05,
+        ]
+    )
     se = pd.Series([0.0] * len(lift))
     traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
     assert isinstance(traj, EffectTrajectory)
@@ -381,7 +401,11 @@ def test_trajectory_slope_ci_is_tuple_of_two_floats() -> None:
 
 
 def test_trajectory_confidence_valid_values() -> None:
-    for factory, days in [(_decreasing_lift, 21), (_flat_lift, 21), (_increasing_lift, 21)]:
+    for factory, days in [
+        (_decreasing_lift, 21),
+        (_flat_lift, 21),
+        (_increasing_lift, 21),
+    ]:
         lift, se = factory()
         traj = analyze_effect_trajectory(lift, se, days_running=days)
         assert traj.confidence in {"low", "medium", "high"}
@@ -465,18 +489,18 @@ def test_no_trend_noisy_data_is_stable() -> None:
     """Lift oscillating around a constant (no net slope) should be classified as STABLE."""
     lift, se = _no_trend_lift()
     traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
-    assert traj.pattern == "STABLE", (
-        f"Expected STABLE for no-trend alternating data, got {traj.pattern}"
-    )
+    assert (
+        traj.pattern == "STABLE"
+    ), f"Expected STABLE for no-trend alternating data, got {traj.pattern}"
 
 
 def test_no_trend_slope_is_near_zero() -> None:
     """Alternating lift produces an OLS slope of exactly 0."""
     lift, se = _no_trend_lift()
     traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
-    assert abs(traj.slope) < 1e-10, (
-        f"Expected slope ≈ 0 for alternating lift, got {traj.slope:.2e}"
-    )
+    assert (
+        abs(traj.slope) < 1e-10
+    ), f"Expected slope ≈ 0 for alternating lift, got {traj.slope:.2e}"
 
 
 # ---------------------------------------------------------------------------
@@ -489,9 +513,9 @@ def test_novelty_days_to_stable_never_zero() -> None:
     lift, se = _decreasing_lift()
     traj = analyze_effect_trajectory(lift, se, days_running=len(lift))
     assert traj.pattern == "NOVELTY", f"Expected NOVELTY, got {traj.pattern}"
-    assert traj.days_to_stable != 0, (
-        f"days_to_stable must not be exactly 0 for NOVELTY; got {traj.days_to_stable}"
-    )
+    assert (
+        traj.days_to_stable != 0
+    ), f"days_to_stable must not be exactly 0 for NOVELTY; got {traj.days_to_stable}"
 
 
 def test_novelty_days_to_stable_is_positive_integer_or_none() -> None:
@@ -501,6 +525,6 @@ def test_novelty_days_to_stable_is_positive_integer_or_none() -> None:
     assert traj.pattern == "NOVELTY"
     if traj.days_to_stable is not None:
         assert isinstance(traj.days_to_stable, int)
-        assert traj.days_to_stable >= 1, (
-            f"days_to_stable must be ≥ 1, got {traj.days_to_stable}"
-        )
+        assert (
+            traj.days_to_stable >= 1
+        ), f"days_to_stable must be ≥ 1, got {traj.days_to_stable}"

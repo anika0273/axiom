@@ -28,13 +28,15 @@ def build_fallback_interpretation(
     Returns:
         Multi-paragraph plain-English interpretation string.
     """
-    return "\n\n".join([
-        _headline(stats_result),
-        _validity(stats_result, ml_result),
-        _who_it_worked_for(ml_result),
-        _recommendation(stats_result, ml_result),
-        _unknowns(stats_result, ml_result),
-    ])
+    return "\n\n".join(
+        [
+            _headline(stats_result),
+            _validity(stats_result, ml_result),
+            _who_it_worked_for(ml_result),
+            _recommendation(stats_result, ml_result),
+            _unknowns(stats_result, ml_result),
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +101,11 @@ def _who_it_worked_for(ml: "MLAnalysisSummary") -> str:
     if ml.hte_top_modifier:
         modifier_clean = ml.hte_top_modifier.replace("_x_treat", "")
         ate_str = f" (ATE={ml.hte_ate:+.4f})" if ml.hte_ate is not None else ""
-        rec = f" {ml.hte_business_recommendation}" if ml.hte_business_recommendation else ""
+        rec = (
+            f" {ml.hte_business_recommendation}"
+            if ml.hte_business_recommendation
+            else ""
+        )
         return (
             f"The strongest treatment modifier was {modifier_clean}{ate_str}. "
             f"Treatment effects varied meaningfully across this dimension.{rec}"

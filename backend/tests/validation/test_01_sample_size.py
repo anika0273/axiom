@@ -25,6 +25,7 @@ If delta > 5 %:
   • one-sided vs two-sided mismatch: one-sided needs z_α not z_α/2.
   • formula bug: verify the factor-of-2 in n = 2*(...)².
 """
+
 from __future__ import annotations
 
 import math
@@ -209,6 +210,6 @@ def test_s5_strict_alpha() -> None:
         notes=f"Should require more samples than α=0.05 equivalent ({ref_loose:,}).",
     )
     result = calculate_sample_size(0.05, 0.01, 0.01, 0.80)
-    assert result.control_size > ref_loose, (
-        "α=0.01 must require more samples than α=0.05."
-    )
+    assert (
+        result.control_size > ref_loose
+    ), "α=0.01 must require more samples than α=0.05."

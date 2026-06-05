@@ -34,13 +34,13 @@ SAMPLES_DIR = Path(__file__).parent / "samples"
 
 # Day-of-week traffic multipliers (Mon=0 … Sun=6)
 _DOW_TRAFFIC: dict[int, float] = {
-    0: 1.0,   # Monday
-    1: 1.2,   # Tuesday
-    2: 1.1,   # Wednesday
-    3: 1.0,   # Thursday
-    4: 0.9,   # Friday
-    5: 0.7,   # Saturday
-    6: 0.8,   # Sunday
+    0: 1.0,  # Monday
+    1: 1.2,  # Tuesday
+    2: 1.1,  # Wednesday
+    3: 1.0,  # Thursday
+    4: 0.9,  # Friday
+    5: 0.7,  # Saturday
+    6: 0.8,  # Sunday
 }
 
 
@@ -240,8 +240,7 @@ def _serialize_ml_result(ml_result: Any) -> dict:
                     "description": s.description,
                     "significant": bool(s.significant),
                     "top_features": {
-                        k: [float(v[0]), float(v[1])]
-                        for k, v in s.top_features.items()
+                        k: [float(v[0]), float(v[1])] for k, v in s.top_features.items()
                     },
                 }
                 for s in seg.segments
@@ -316,7 +315,9 @@ def _gen_ecommerce_checkout() -> SampleExperiment:
     # device_type=1 for mobile (65%), 0 for desktop (35%).
     # Encoding mobile as 1 is critical: device_type_x_treat = 1*treatment changes
     # from 1→0 for mobile users so XGBoost unambiguously ranks it first.
-    device_type = (rng.random(n_total) < 0.65).astype(int)   # 1=mobile (65%), 0=desktop (35%)
+    device_type = (rng.random(n_total) < 0.65).astype(
+        int
+    )  # 1=mobile (65%), 0=desktop (35%)
 
     # user_age_days and n_prior_orders share a latent maturity factor Z
     Z = rng.standard_normal(n_total)
@@ -346,8 +347,10 @@ def _gen_ecommerce_checkout() -> SampleExperiment:
     base_rate = 0.10
     p_convert = np.full(n_total, base_rate, dtype=float)
     is_mobile = device_type == 1
-    p_convert += treatment * is_mobile * base_rate * 2.00        # mobile: p→0.30 if treated
-    p_convert += treatment * (~is_mobile.astype(bool)).astype(int) * base_rate * (-0.30)  # desktop: p→0.07
+    p_convert += treatment * is_mobile * base_rate * 2.00  # mobile: p→0.30 if treated
+    p_convert += (
+        treatment * (~is_mobile.astype(bool)).astype(int) * base_rate * (-0.30)
+    )  # desktop: p→0.07
     p_convert = np.clip(p_convert, 0.001, 0.999)
     outcome = (rng.random(n_total) < p_convert).astype(int)
 
@@ -391,9 +394,13 @@ def _gen_ecommerce_checkout() -> SampleExperiment:
         n_trt = max(20, int(base_trt_per_day * traffic_mult + rng.integers(-8, 9)))
 
         # Control rate is stable; treatment rate declines (novelty effect)
-        ctrl_rate = float(np.clip(base_rate * weekend_conv * (1.0 + rng.normal(0, 0.03)), 0.02, 0.35))
+        ctrl_rate = float(
+            np.clip(base_rate * weekend_conv * (1.0 + rng.normal(0, 0.03)), 0.02, 0.35)
+        )
         abs_lift = _novelty_abs_lift(day_idx)
-        trt_rate = float(np.clip(ctrl_rate + abs_lift * (1.0 + rng.normal(0, 0.05)), 0.02, 0.80))
+        trt_rate = float(
+            np.clip(ctrl_rate + abs_lift * (1.0 + rng.normal(0, 0.05)), 0.02, 0.80)
+        )
 
         eff = trt_rate - ctrl_rate
         se = math.sqrt(
@@ -422,8 +429,10 @@ def _gen_ecommerce_checkout() -> SampleExperiment:
 
     feature_cols = ["device_type", "user_age_days", "cart_value", "n_prior_orders"]
     user_features = pd.concat(
-        [ctrl_df[feature_cols].reset_index(drop=True),
-         trt_df[feature_cols].reset_index(drop=True)],
+        [
+            ctrl_df[feature_cols].reset_index(drop=True),
+            trt_df[feature_cols].reset_index(drop=True),
+        ],
         ignore_index=True,
     )
 
@@ -431,8 +440,9 @@ def _gen_ecommerce_checkout() -> SampleExperiment:
         control_values=[float(v) for v in control_values],
         treatment_values=[float(v) for v in treatment_values],
         user_features=user_features,
-        daily_metrics=daily_data[["date", "control_metric", "treatment_metric",
-                                   "n_control", "n_treatment"]].copy(),
+        daily_metrics=daily_data[
+            ["date", "control_metric", "treatment_metric", "n_control", "n_treatment"]
+        ].copy(),
     )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -536,13 +546,15 @@ def _gen_saas_trial() -> SampleExperiment:
     is_large = company_size > 50
     base_rate_large = 0.15
     base_rate_small = 0.11
-    treat_rate_large = 0.23   # +8pp absolute
-    treat_rate_small = 0.12   # +1pp absolute
+    treat_rate_large = 0.23  # +8pp absolute
+    treat_rate_small = 0.12  # +1pp absolute
 
     p_convert = np.where(is_large, base_rate_large, base_rate_small)
     delta_large = treat_rate_large - base_rate_large
     delta_small = treat_rate_small - base_rate_small
-    p_convert = p_convert + treatment * (is_large * delta_large + (~is_large) * delta_small)
+    p_convert = p_convert + treatment * (
+        is_large * delta_large + (~is_large) * delta_small
+    )
     # Tech industry (0) gets additional +2pp boost for treatment
     p_convert = p_convert + treatment * (industry == 0) * 0.02
     p_convert = np.clip(p_convert, 0.001, 0.999)
@@ -571,11 +583,15 @@ def _gen_saas_trial() -> SampleExperiment:
     # Stable treatment rate ratio (no novelty decay)
     stable_ctrl_rate = (
         np.sum(is_large & (treatment == 0)) / np.sum(treatment == 0) * base_rate_large
-        + np.sum(~is_large & (treatment == 0)) / np.sum(treatment == 0) * base_rate_small
+        + np.sum(~is_large & (treatment == 0))
+        / np.sum(treatment == 0)
+        * base_rate_small
     )
     stable_trt_rate = (
         np.sum(is_large & (treatment == 1)) / np.sum(treatment == 1) * treat_rate_large
-        + np.sum(~is_large & (treatment == 1)) / np.sum(treatment == 1) * treat_rate_small
+        + np.sum(~is_large & (treatment == 1))
+        / np.sum(treatment == 1)
+        * treat_rate_small
     )
 
     daily_rows = []
@@ -587,8 +603,12 @@ def _gen_saas_trial() -> SampleExperiment:
         n_ctrl = max(5, int(base_ctrl_per_day * traffic_mult + rng.integers(-5, 6)))
         n_trt = max(5, int(base_trt_per_day * traffic_mult + rng.integers(-5, 6)))
 
-        ctrl_rate = float(np.clip(stable_ctrl_rate * (1.0 + rng.normal(0, 0.05)), 0.01, 0.50))
-        trt_rate = float(np.clip(stable_trt_rate * (1.0 + rng.normal(0, 0.05)), 0.01, 0.50))
+        ctrl_rate = float(
+            np.clip(stable_ctrl_rate * (1.0 + rng.normal(0, 0.05)), 0.01, 0.50)
+        )
+        trt_rate = float(
+            np.clip(stable_trt_rate * (1.0 + rng.normal(0, 0.05)), 0.01, 0.50)
+        )
 
         eff = trt_rate - ctrl_rate
         se = math.sqrt(
@@ -618,8 +638,10 @@ def _gen_saas_trial() -> SampleExperiment:
 
     feature_cols = ["company_size", "industry", "signup_source", "usage_score"]
     user_features = pd.concat(
-        [ctrl_df[feature_cols].reset_index(drop=True),
-         trt_df[feature_cols].reset_index(drop=True)],
+        [
+            ctrl_df[feature_cols].reset_index(drop=True),
+            trt_df[feature_cols].reset_index(drop=True),
+        ],
         ignore_index=True,
     )
 
@@ -627,8 +649,9 @@ def _gen_saas_trial() -> SampleExperiment:
         control_values=[float(v) for v in control_values],
         treatment_values=[float(v) for v in treatment_values],
         user_features=user_features,
-        daily_metrics=daily_data[["date", "control_metric", "treatment_metric",
-                                   "n_control", "n_treatment"]].copy(),
+        daily_metrics=daily_data[
+            ["date", "control_metric", "treatment_metric", "n_control", "n_treatment"]
+        ].copy(),
     )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -702,9 +725,7 @@ def _gen_marketplace_fee() -> SampleExperiment:
     n_control = 10_000
 
     # ── Correlated features via latent tenure factor ───────────────────────────
-    seller_tenure_days = np.clip(
-        rng.exponential(scale=150, size=n_total), 0.0, 1000.0
-    )
+    seller_tenure_days = np.clip(rng.exponential(scale=150, size=n_total), 0.0, 1000.0)
 
     # avg_rating: beta(8,2)*2+3 — range [3,5], correlated with tenure via copula
     from scipy.stats import expon as sp_expon
@@ -722,7 +743,9 @@ def _gen_marketplace_fee() -> SampleExperiment:
     is_very_few = rng.random(n_total) < p_very_few
     listing_lambda = np.clip(2.0 + seller_tenure_days / 60.0, 0.5, 18.0)
     raw_listings = rng.poisson(listing_lambda)
-    n_listings = np.where(is_very_few, rng.integers(0, 2, n_total), raw_listings).astype(int)
+    n_listings = np.where(
+        is_very_few, rng.integers(0, 2, n_total), raw_listings
+    ).astype(int)
 
     # category: 8 categories with realistic marketplace distribution
     category = rng.choice(
@@ -740,11 +763,12 @@ def _gen_marketplace_fee() -> SampleExperiment:
     is_electronics = category == 0
 
     # Treatment effect in log-space: +12% for established, -5% for new
-    log_treatment_effect = np.where(
-        is_established, math.log(1.12), math.log(0.95)
-    )
+    log_treatment_effect = np.where(is_established, math.log(1.12), math.log(0.95))
     # Electronics bonus: +5% additional for established sellers in treatment
-    log_treatment_effect = log_treatment_effect + treatment * is_established * is_electronics * math.log(1.05)
+    log_treatment_effect = (
+        log_treatment_effect
+        + treatment * is_established * is_electronics * math.log(1.05)
+    )
 
     gmv_mu = base_mu + treatment * log_treatment_effect
     gmv_noise = rng.normal(0, 1.2, n_total)
@@ -788,12 +812,12 @@ def _gen_marketplace_fee() -> SampleExperiment:
             n_ctrl = int(n_ctrl * 5)
             n_trt = int(n_trt * 5)
 
-        ctrl_gmv = float(np.clip(
-            base_ctrl_gmv * (1.0 + rng.normal(0, 0.06)), 10.0, 5000.0
-        ))
-        trt_gmv = float(np.clip(
-            base_trt_gmv * (1.0 + rng.normal(0, 0.06)), 10.0, 5000.0
-        ))
+        ctrl_gmv = float(
+            np.clip(base_ctrl_gmv * (1.0 + rng.normal(0, 0.06)), 10.0, 5000.0)
+        )
+        trt_gmv = float(
+            np.clip(base_trt_gmv * (1.0 + rng.normal(0, 0.06)), 10.0, 5000.0)
+        )
 
         # Contaminate treatment metric on anomaly days
         if day_idx in (8, 9):
@@ -827,8 +851,10 @@ def _gen_marketplace_fee() -> SampleExperiment:
 
     feature_cols = ["seller_tenure_days", "category", "avg_rating", "n_listings"]
     user_features = pd.concat(
-        [ctrl_df[feature_cols].reset_index(drop=True),
-         trt_df[feature_cols].reset_index(drop=True)],
+        [
+            ctrl_df[feature_cols].reset_index(drop=True),
+            trt_df[feature_cols].reset_index(drop=True),
+        ],
         ignore_index=True,
     )
 
@@ -836,8 +862,9 @@ def _gen_marketplace_fee() -> SampleExperiment:
         control_values=[float(v) for v in control_values],
         treatment_values=[float(v) for v in treatment_values],
         user_features=user_features,
-        daily_metrics=daily_data[["date", "control_metric", "treatment_metric",
-                                   "n_control", "n_treatment"]].copy(),
+        daily_metrics=daily_data[
+            ["date", "control_metric", "treatment_metric", "n_control", "n_treatment"]
+        ].copy(),
     )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -901,23 +928,23 @@ def _validate_dataset1(sample: SampleExperiment) -> None:
     anomaly = pr.get("anomaly", {})
     srm = next((c for c in anomaly.get("checks", []) if c["name"] == "srm_check"), None)
     assert srm is not None, "srm_check missing from anomaly checks"
-    assert not srm["passed"], (
-        f"SRM check passed (p={srm['score']:.4f}) — increase treatment/control imbalance"
-    )
+    assert not srm[
+        "passed"
+    ], f"SRM check passed (p={srm['score']:.4f}) — increase treatment/control imbalance"
 
     # Novelty must be detected
     novelty = pr.get("novelty", {})
-    assert novelty.get("pattern") == "NOVELTY", (
-        f"Expected NOVELTY pattern, got {novelty.get('pattern')}"
-    )
+    assert (
+        novelty.get("pattern") == "NOVELTY"
+    ), f"Expected NOVELTY pattern, got {novelty.get('pattern')}"
 
     # HTE top modifier must include device_type
     hte = pr.get("hte", {})
     top = hte.get("top_interactions", [])
     assert top, "HTE top_interactions is empty"
-    assert any("device_type" in t for t in top[:3]), (
-        f"device_type not in top-3 HTE interactions: {top[:3]}"
-    )
+    assert any(
+        "device_type" in t for t in top[:3]
+    ), f"device_type not in top-3 HTE interactions: {top[:3]}"
 
 
 def _validate_dataset2(sample: SampleExperiment) -> None:
@@ -928,15 +955,17 @@ def _validate_dataset2(sample: SampleExperiment) -> None:
     anomaly = pr.get("anomaly", {})
     srm = next((c for c in anomaly.get("checks", []) if c["name"] == "srm_check"), None)
     if srm is not None:
-        assert srm["passed"], f"Unexpected SRM in clean experiment (p={srm['score']:.4f})"
+        assert srm[
+            "passed"
+        ], f"Unexpected SRM in clean experiment (p={srm['score']:.4f})"
 
     # company_size should be the top HTE modifier
     hte = pr.get("hte", {})
     top = hte.get("top_interactions", [])
     assert top, "HTE top_interactions is empty"
-    assert any("company_size" in t for t in top[:3]), (
-        f"company_size not in top-3 HTE interactions: {top[:3]}"
-    )
+    assert any(
+        "company_size" in t for t in top[:3]
+    ), f"company_size not in top-3 HTE interactions: {top[:3]}"
 
 
 def _validate_dataset3(sample: SampleExperiment) -> None:
@@ -950,17 +979,18 @@ def _validate_dataset3(sample: SampleExperiment) -> None:
 
     # Outlier_days or volume_spike must be among the failures
     failed_names = {c["name"] for c in failed}
-    assert failed_names & {"outlier_days", "volume_spike"}, (
-        f"Expected outlier_days or volume_spike to fail; got: {failed_names}"
-    )
+    assert failed_names & {
+        "outlier_days",
+        "volume_spike",
+    }, f"Expected outlier_days or volume_spike to fail; got: {failed_names}"
 
     # HTE top modifier must include seller_tenure_days
     hte = pr.get("hte", {})
     top = hte.get("top_interactions", [])
     assert top, "HTE top_interactions is empty"
-    assert any("seller_tenure_days" in t for t in top[:3]), (
-        f"seller_tenure_days not in top-3 HTE interactions: {top[:3]}"
-    )
+    assert any(
+        "seller_tenure_days" in t for t in top[:3]
+    ), f"seller_tenure_days not in top-3 HTE interactions: {top[:3]}"
 
 
 # ---------------------------------------------------------------------------

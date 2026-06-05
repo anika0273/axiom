@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ml.engine import MLExperimentInput, run_ml_analysis
 from app.repositories import result_repo
-from app.schemas.ml import DailyMetricRecord, MLAnalysisRequest, MLAnalysisResultData, ModuleStatusOut
+from app.schemas.ml import (
+    DailyMetricRecord,
+    MLAnalysisRequest,
+    MLAnalysisResultData,
+    ModuleStatusOut,
+)
 
 
 def _build_result_data(
@@ -92,4 +97,6 @@ async def run_analysis(
         stored = await result_repo.store_result(db, body.experiment_id, ml_result)
         stored_id = stored.id
 
-    return _build_result_data(ml_result, experiment_id=body.experiment_id, stored_id=stored_id)
+    return _build_result_data(
+        ml_result, experiment_id=body.experiment_id, stored_id=stored_id
+    )

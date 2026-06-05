@@ -108,7 +108,9 @@ class TestSampleSize:
             "/api/v1/stats/power/sample-size", json=_SAMPLE_SIZE_BODY
         ).json()["data"]
         assert data["control_size"] == data["treatment_size"]
-        assert data["total_sample_size"] == data["control_size"] + data["treatment_size"]
+        assert (
+            data["total_sample_size"] == data["control_size"] + data["treatment_size"]
+        )
 
     def test_missing_baseline_rate_returns_422(self, client: TestClient) -> None:
         r = client.post(
@@ -152,18 +154,18 @@ class TestRuntime:
         assert r.status_code == 200
 
     def test_response_has_duration_fields(self, client: TestClient) -> None:
-        data = client.post(
-            "/api/v1/stats/power/runtime", json=_RUNTIME_BODY
-        ).json()["data"]
+        data = client.post("/api/v1/stats/power/runtime", json=_RUNTIME_BODY).json()[
+            "data"
+        ]
         assert "days_expected" in data
         assert "days_lower_95" in data
         assert "days_upper_95" in data
         assert "weeks_expected" in data
 
     def test_days_ordering(self, client: TestClient) -> None:
-        data = client.post(
-            "/api/v1/stats/power/runtime", json=_RUNTIME_BODY
-        ).json()["data"]
+        data = client.post("/api/v1/stats/power/runtime", json=_RUNTIME_BODY).json()[
+            "data"
+        ]
         assert data["days_lower_95"] <= data["days_expected"] <= data["days_upper_95"]
 
     def test_zero_daily_traffic_returns_422(self, client: TestClient) -> None:
@@ -192,7 +194,12 @@ class TestAnalyze:
         data = client.post(
             "/api/v1/stats/analyze", json=_ANALYZE_PROPORTION_BODY
         ).json()["data"]
-        assert data["overall_recommendation"] in {"RUN", "STOP_WIN", "STOP_LOSE", "NO_EFFECT"}
+        assert data["overall_recommendation"] in {
+            "RUN",
+            "STOP_WIN",
+            "STOP_LOSE",
+            "NO_EFFECT",
+        }
         assert isinstance(data["plain_english"], str)
         assert len(data["plain_english"]) > 0
 
@@ -211,9 +218,9 @@ class TestAnalyze:
         assert r.status_code == 200
 
     def test_mean_response_test_type(self, client: TestClient) -> None:
-        data = client.post(
-            "/api/v1/stats/analyze", json=_ANALYZE_MEAN_BODY
-        ).json()["data"]
+        data = client.post("/api/v1/stats/analyze", json=_ANALYZE_MEAN_BODY).json()[
+            "data"
+        ]
         assert data["primary_result"]["test_type"] == "t-test"
 
     def test_wrong_success_type_returns_400(self, client: TestClient) -> None:
