@@ -56,7 +56,6 @@ from typing import Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict
 
-
 # ---------------------------------------------------------------------------
 # Pydantic models
 # ---------------------------------------------------------------------------

@@ -26,7 +26,6 @@ from app.intelligence.planner import (
 )
 from app.stats.power import calculate_sample_size
 
-
 # ---------------------------------------------------------------------------
 # Helpers for building mock Claude responses
 # ---------------------------------------------------------------------------
@@ -633,8 +632,9 @@ def _make_api_app():
     app.include_router(router)
 
     # Override DB dependency to avoid real DB
-    from app.dependencies import get_db
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.dependencies import get_db
 
     async def _fake_db():
         yield AsyncMock(spec=AsyncSession)

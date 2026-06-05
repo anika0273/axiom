@@ -18,14 +18,13 @@ import math
 import pytest
 
 from app.stats.power import (
-    SampleSizeResult,
     RuntimeEstimate,
+    SampleSizeResult,
     calculate_mde,
     calculate_power,
     calculate_sample_size,
     runtime_estimate,
 )
-
 
 # ---------------------------------------------------------------------------
 # calculate_sample_size

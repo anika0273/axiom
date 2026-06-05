@@ -51,7 +51,6 @@ from app.intelligence.guardrails import (
 )
 from app.intelligence.interpreter import FullAnalysisResult, MLAnalysisSummary
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared fixtures
 # ─────────────────────────────────────────────────────────────────────────────

@@ -12,7 +12,8 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM, JSONB, UUID
+from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "001"
 down_revision: Union[str, None] = None

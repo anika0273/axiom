@@ -11,8 +11,8 @@ Coverage targets:
 
 from __future__ import annotations
 
-import pytest
 import numpy as np
+import pytest
 
 from app.stats.engine import (
     ExperimentAnalysis,
@@ -20,7 +20,6 @@ from app.stats.engine import (
     ExperimentData,
     analyze_experiment,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

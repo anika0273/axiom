@@ -48,7 +48,6 @@ from pydantic import BaseModel
 
 from app.stats.testing import TestResult, run_mean_test
 
-
 # ---------------------------------------------------------------------------
 # Pydantic models
 # ---------------------------------------------------------------------------

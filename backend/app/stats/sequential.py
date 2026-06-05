@@ -70,7 +70,6 @@ import numpy as np
 from pydantic import BaseModel
 from scipy.stats import norm
 
-
 # Conditional power below this threshold triggers a futility recommendation.
 _FUTILITY_POWER_THRESHOLD: float = 0.20
 

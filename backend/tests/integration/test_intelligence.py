@@ -30,8 +30,8 @@ from app.intelligence.interpreter import (
     parse_ml_from_json,
     parse_stats_from_json,
 )
+from app.intelligence.planner import PROMPT_VERSION as PLANNER_VERSION
 from app.intelligence.planner import (
-    PROMPT_VERSION as PLANNER_VERSION,
     ExperimentPlanResult,
     plan_experiment,
 )
@@ -41,7 +41,6 @@ from app.intelligence.reporter import (
 )
 from app.models.experiment import AIInteraction
 from app.stats.power import calculate_sample_size
-
 from tests.integration.conftest import _retry_once, count_ai_interactions
 
 # ---------------------------------------------------------------------------
@@ -398,7 +397,8 @@ async def test_reporter_all_sections(
         after_count = await count_ai_interactions(db_session)
         # Capture before_count once — it's updated by the planner tests in the same session
         # We verify at least one row exists with this experiment name
-        from sqlalchemy import select as sa_select, text
+        from sqlalchemy import select as sa_select
+        from sqlalchemy import text
 
         result = await db_session.execute(
             sa_select(AIInteraction)

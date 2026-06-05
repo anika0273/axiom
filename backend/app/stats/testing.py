@@ -80,7 +80,6 @@ from scipy import stats as scipy_stats
 from scipy.stats import linregress
 from statsmodels.stats.proportion import proportions_ztest
 
-
 # ---------------------------------------------------------------------------
 # Result model
 # ---------------------------------------------------------------------------

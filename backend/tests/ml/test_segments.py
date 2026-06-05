@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import warnings
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import pytest
-from unittest.mock import patch
 
 from app.ml.segments import (
     SegmentAnalysis,
@@ -21,7 +21,6 @@ from app.ml.segments import (
     _warn_treatment_balance,
     discover_segments,
 )
-
 
 # ---------------------------------------------------------------------------
 # Synthetic data factories

@@ -6,11 +6,10 @@ import asyncio
 import os
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-
-from alembic import context
 
 config = context.config
 
@@ -21,9 +20,10 @@ if config.config_file_name is not None:
 _db_url = os.environ.get("DATABASE_URL", config.get_main_option("sqlalchemy.url", ""))
 config.set_main_option("sqlalchemy.url", _db_url)
 
+import app.models  # noqa: E402, F401  — side-effect import registers models
+
 # Import Base and all models so their tables are registered in metadata.
 from app.db.base import Base  # noqa: E402
-import app.models  # noqa: E402, F401  — side-effect import registers models
 
 target_metadata = Base.metadata
 

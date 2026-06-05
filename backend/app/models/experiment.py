@@ -8,14 +8,15 @@ from typing import Any
 from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy import CheckConstraint, Enum as SAEnum, ForeignKey, Index, text
+from sqlalchemy import CheckConstraint
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import ForeignKey, Index, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
-
 
 # ── Enum definitions ──────────────────────────────────────────────────────────
 
