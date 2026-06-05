@@ -24,7 +24,6 @@ import pytest
 from app.stats.corrections import (
     CorrectionComparison,
     CorrectionRecommendation,
-    CorrectionResult,
     apply_multiple_correction,
     compare_corrections,
     recommend_correction,

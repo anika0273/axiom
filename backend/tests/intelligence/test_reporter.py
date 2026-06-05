@@ -27,7 +27,6 @@ import pytest
 
 from app.intelligence.interpreter import FullAnalysisResult, MLAnalysisSummary
 from app.intelligence.reporter import (
-    ReportSection,
     StakeholderReport,
     _validate_grounding,
     build_fallback_report,

@@ -34,9 +34,8 @@ Failure diagnosis
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
-from app.stats.cuped import apply_cuped, estimate_variance_reduction
+from app.stats.cuped import apply_cuped
 from tests.validation._report import record
 
 _MODULE = "cuped"
@@ -229,7 +228,7 @@ def test_c3_treatment_effect_preserved() -> None:
     record(
         module=_MODULE,
         scenario="C3: effect preservation, balanced x (Δ≈0 by algebra)",
-        expected=f"lift_adj = lift_unadj (Δ < 1e-9, floating-point exact)",
+        expected="lift_adj = lift_unadj (Δ < 1e-9, floating-point exact)",
         observed=f"lift_adj={lift_adjusted:.6f}, lift_unadj={lift_unadjusted:.6f}",
         delta=f"{delta:.2e}",
         tolerance="< 1e-9 (algebraic exact with balanced x)",

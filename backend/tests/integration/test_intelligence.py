@@ -20,17 +20,12 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-import pytest_asyncio
 
 from app.intelligence.interpreter import (
     FullAnalysisResult,
     MLAnalysisSummary,
-    build_fallback_interpretation,
     interpret_results,
-    parse_ml_from_json,
-    parse_stats_from_json,
 )
-from app.intelligence.planner import PROMPT_VERSION as PLANNER_VERSION
 from app.intelligence.planner import ExperimentPlanResult, plan_experiment
 from app.intelligence.reporter import StakeholderReport, generate_report
 from app.models.experiment import AIInteraction
@@ -392,7 +387,6 @@ async def test_reporter_all_sections(
         # Capture before_count once — it's updated by the planner tests in the same session
         # We verify at least one row exists with this experiment name
         from sqlalchemy import select as sa_select
-        from sqlalchemy import text
 
         result = await db_session.execute(
             sa_select(AIInteraction)

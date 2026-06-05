@@ -18,7 +18,7 @@ import json
 import logging
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
@@ -401,7 +401,7 @@ def _build_section_8(
         "",
         "### Generation Metadata",
         "",
-        f"| Field | Value |",
+        "| Field | Value |",
         "|---|---|",
         f"| Prompt version | {PROMPT_VERSION} |",
         f"| Model | {CLAUDE_MODEL} |",

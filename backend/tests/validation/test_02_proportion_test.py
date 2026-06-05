@@ -23,7 +23,6 @@ from __future__ import annotations
 import math
 
 import numpy as np
-import pytest
 from scipy.stats import norm
 from statsmodels.stats.proportion import proportions_ztest
 
@@ -101,7 +100,7 @@ def _run_scenario(
     elif not pass_p:
         likely = "Wrong alternative argument ('larger'/'smaller' vs 'two-sided')."
     elif not pass_rej:
-        likely = f"Boundary comparison issue (< vs ≤) or wrong alpha applied."
+        likely = "Boundary comparison issue (< vs ≤) or wrong alpha applied."
     elif not pass_ci:
         likely = "CI uses pooled SE instead of unpooled SE (Wald)."
 

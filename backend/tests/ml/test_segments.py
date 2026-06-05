@@ -12,13 +12,10 @@ import pytest
 from app.ml.segments import (
     SegmentAnalysis,
     SegmentProfile,
-    _assignment_consistency,
     _build_overall_recommendation,
     _compute_segment_lift,
     _describe_segment,
-    _segment_lift_uncertainty,
     _top_features_for_segment,
-    _warn_treatment_balance,
     discover_segments,
 )
 

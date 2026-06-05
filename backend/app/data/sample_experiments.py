@@ -1024,9 +1024,9 @@ def generate_all() -> dict[str, SampleExperiment]:
         print(f"{'='*60}")
         sample = gen_fn()
 
-        print(f"  Validating ...")
+        print("  Validating ...")
         validators[name](sample)
-        print(f"  Validation passed ✓")
+        print("  Validation passed ✓")
 
         # Save to JSON
         path = SAMPLES_DIR / f"{name}.json"

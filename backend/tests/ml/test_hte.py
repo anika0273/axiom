@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -13,8 +12,6 @@ from app.ml.hte import (
     _build_interaction_matrix,
     _check_treatment_balance,
     _drop_low_variance,
-    _log_high_correlations,
-    _stability_score,
     fit_hte_model,
 )
 

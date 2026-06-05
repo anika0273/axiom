@@ -457,7 +457,6 @@ class FakeAsyncSession:
         return None
 
     async def execute(self, stmt) -> _FakeResult:
-        from app.models.experiment import Experiment, ExperimentResult
 
         # Determine the target table from stmt.froms (SQLAlchemy 2.x-safe).
         try:

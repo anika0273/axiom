@@ -181,7 +181,7 @@ def summarize_trajectory(trajectory: EffectTrajectory) -> str:
             f"This pattern suggests initial excitement or unfamiliarity rather "
             f"than lasting value. The projected long-run lift is approximately "
             f"{stable_pct}." + wait + " "
-            f"Avoid making a final shipping decision until the effect stabilises."
+            "Avoid making a final shipping decision until the effect stabilises."
         )
 
     if p == "LEARNING":
@@ -197,7 +197,7 @@ def summarize_trajectory(trajectory: EffectTrajectory) -> str:
             f"suggesting users are progressively adopting or adapting to the change. "
             f"The current lift of {lift_pct} is likely an underestimate; the "
             f"projected long-run lift is approximately {stable_pct}." + wait + " "
-            f"Shipping now may undervalue the feature's true impact."
+            "Shipping now may undervalue the feature's true impact."
         )
 
     return ""  # unreachable but satisfies type checker

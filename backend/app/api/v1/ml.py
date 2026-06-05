@@ -35,7 +35,6 @@ from app.schemas.ml import (
     SegmentsData,
     SegmentsRequest,
     SegmentsResponse,
-    StoredResultSummary,
     ValidateData,
     ValidateRequest,
     ValidateResponse,

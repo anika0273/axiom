@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from itertools import combinations
 
 import numpy as np

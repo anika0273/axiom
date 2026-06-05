@@ -12,7 +12,6 @@ import numpy as np
 import pytest
 
 from app.stats.cuped import (
-    CUPEDGroupSummary,
     CUPEDResult,
     apply_cuped,
     estimate_variance_reduction,

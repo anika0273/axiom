@@ -41,7 +41,6 @@ Failure diagnosis
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from app.stats.engine import ExperimentConfig, ExperimentData, analyze_experiment
 from tests.validation._report import record

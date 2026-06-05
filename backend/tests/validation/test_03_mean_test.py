@@ -27,7 +27,6 @@ from __future__ import annotations
 import math
 
 import numpy as np
-import pytest
 from scipy.stats import t as t_dist
 from scipy.stats import ttest_ind
 
@@ -109,7 +108,7 @@ def _run_scenario(
         f"{label}: "
         + (f"Δt={dt:.6f} " if not pass_t else "")
         + (f"Δp={dp:.6f} " if not pass_p else "")
-        + (f"reject mismatch " if not pass_rej else "")
+        + ("reject mismatch " if not pass_rej else "")
         + (f"ΔCI=({d_ci_lo:.4f},{d_ci_hi:.4f}) " if not pass_ci else "")
     )
 

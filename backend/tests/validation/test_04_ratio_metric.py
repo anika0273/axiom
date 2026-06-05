@@ -31,7 +31,6 @@ from __future__ import annotations
 import math
 
 import numpy as np
-import pytest
 
 from app.stats.testing import _delta_method_variance
 from tests.validation._report import record

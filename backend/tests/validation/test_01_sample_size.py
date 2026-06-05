@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
 from scipy.stats import norm
 
 from app.stats.power import calculate_sample_size

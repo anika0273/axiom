@@ -12,7 +12,6 @@ import pytest
 from app.ml.engine import (
     MLAnalysisResult,
     MLExperimentInput,
-    ModuleStatus,
     run_ml_analysis,
 )
 

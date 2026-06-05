@@ -6,7 +6,6 @@ The stats engine is called for real (pure computation, no I/O).
 
 from __future__ import annotations
 
-import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,7 +17,6 @@ from app.intelligence.planner import (
     ExperimentPlanResult,
     PrimaryMetric,
     StatisticalConfig,
-    ValidationResult,
     _sanitize_input,
     extract_clarifying_questions,
     plan_experiment,

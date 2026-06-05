@@ -39,10 +39,9 @@ from __future__ import annotations
 import warnings
 
 import numpy as np
-import pytest
 from statsmodels.stats.multitest import multipletests
 
-from app.stats.corrections import apply_multiple_correction, compare_corrections
+from app.stats.corrections import apply_multiple_correction
 from tests.validation._report import record
 
 _MODULE = "corrections"
@@ -211,7 +210,7 @@ def test_cor3_holm_between_bonferroni_and_bh() -> None:
     record(
         module=_MODULE,
         scenario="COR3: power ordering Bonferroni≤Holm≤BH",
-        expected=f"Bonferroni≤Holm≤BH",
+        expected="Bonferroni≤Holm≤BH",
         observed=f"Bonferroni={n_b}, Holm={n_h}, BH={n_bh}",
         delta=f"ordering {'OK' if passed else 'VIOLATED'}",
         tolerance="Bonferroni≤Holm≤BH",
@@ -259,7 +258,7 @@ def test_cor4_corrected_p_values_against_statsmodels() -> None:
         record(
             module=_MODULE,
             scenario=f"COR4: corrected p vs statsmodels, {method}",
-            expected=f"corrected_p≈statsmodels, mask matches",
+            expected="corrected_p≈statsmodels, mask matches",
             observed=f"max_Δp={max_p_diff:.4e}, mask_diffs={mask_diff}",
             delta=f"max_Δp={max_p_diff:.4e}",
             tolerance=f"Δp≤{_P_TOL}, 0 mask diffs",

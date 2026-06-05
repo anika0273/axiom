@@ -7,7 +7,6 @@ Rate limits: 10/minute for planning, 5/minute for streaming interpretation,
 """
 
 import logging
-import time
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
 from typing import Literal
@@ -305,7 +304,6 @@ async def generate_experiment_report(
 ) -> JSONResponse:
     """Generate and store a stakeholder report for an experiment."""
     from app.intelligence.reporter import StakeholderReport, generate_report
-    from app.models.experiment import ExperimentResult
 
     if body is None:
         body = ReportRequest()

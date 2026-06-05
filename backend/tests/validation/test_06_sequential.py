@@ -43,12 +43,9 @@ from __future__ import annotations
 
 import math
 
-import numpy as np
-import pytest
 from scipy.stats import norm
 
 from app.stats.sequential import (
-    SequentialBoundaries,
     compute_obrien_fleming_boundaries,
     evaluate_interim_look,
 )
@@ -198,7 +195,7 @@ def test_seq3_monotonicity_early_stricter() -> None:
     record(
         module=_MODULE,
         scenario="SEQ3: monotonicity K=8, α=0.05",
-        expected=f"z*[k] > z*[k+1] for all k (strictly decreasing)",
+        expected="z*[k] > z*[k+1] for all k (strictly decreasing)",
         observed=f"z*=[{', '.join(f'{z:.3f}' for z in z_vals)}]",
         delta=f"{len(violations)} violation(s)",
         tolerance="0 violations",
