@@ -20,6 +20,69 @@ import SequentialChart from '../components/charts/SequentialChart'
 
 const API_BASE = 'http://localhost:8000'
 
+function buildResultFromLive(liveData, experiment) {
+  if (!liveData) return null
+  const { stats, ml } = liveData
+  if (!stats?.primary_result) return null
+
+  const primary = stats.primary_result
+  const canTrust = ml?.can_trust_results ?? true
+  const overallVerdict = ml?.overall_verdict ?? 'CLEAN'
+
+  const verdict =
+    !canTrust || overallVerdict === 'INVALID'
+      ? 'INVALID'
+      : primary.is_significant
+      ? 'SIGNIFICANT'
+      : 'NOT_SIGNIFICANT'
+
+  const ciLow = primary.confidence_interval ? primary.confidence_interval[0] * 100 : null
+  const ciHigh = primary.confidence_interval ? primary.confidence_interval[1] * 100 : null
+  const controlRate = experiment?.baseline_metric ?? 0
+  const treatmentRate = controlRate + (primary.lift_abs ?? 0)
+  const ciHalfWidth = ciLow != null && ciHigh != null ? (ciHigh - ciLow) / 2 / 100 : null
+
+  return {
+    verdict,
+    isSignificant: primary.is_significant,
+    pValue: primary.p_value,
+    ciLow,
+    ciHigh,
+    liftPct: primary.lift_pct ?? 0,
+    liftAbs: primary.lift_abs ?? 0,
+    controlRate,
+    treatmentRate,
+    controlN: null,
+    treatmentN: null,
+    recommendation: stats.overall_recommendation,
+    testType: primary.test_type,
+    interpretation: primary.interpretation,
+    warnings: stats.warnings ?? [],
+    plainEnglish: stats.plain_english,
+    overallVerdict,
+    canTrust,
+    anomaly: null,
+    segments: null,
+    novelty: null,
+    hte: null,
+    keyInsights: ml?.key_insights ?? [],
+    metrics: [
+      {
+        name: experiment?.name?.split(' ').slice(0, 4).join(' ') ?? 'Primary Metric',
+        control: controlRate,
+        treatment: treatmentRate,
+        controlError: ciHalfWidth ? ciHalfWidth * 0.5 : null,
+        treatmentError: ciHalfWidth,
+        lift: primary.lift_pct ?? 0,
+        pValue: primary.p_value,
+        isSignificant: primary.is_significant,
+      },
+    ],
+    sequential: stats.sequential_status ?? null,
+    dailyData: null,
+  }
+}
+
 function buildResult(experiment, sample) {
   if (!sample) return null
 
@@ -172,13 +235,14 @@ export default function ExperimentResults() {
 
   const [analyzing, setAnalyzing] = useState(false)
   const [analyzeError, setAnalyzeError] = useState(null)
+  const [liveResult, setLiveResult] = useState(null)
 
   const runAnalysis = useCallback(async () => {
     setAnalyzing(true)
     setAnalyzeError(null)
     try {
       const res = await fetch(
-        `${API_BASE}/api/v1/ml/experiments/${id}/analysis`,
+        `${API_BASE}/api/v1/experiments/${id}/analyze`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -186,9 +250,14 @@ export default function ExperimentResults() {
       )
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body?.detail ?? `Analysis failed (${res.status})`)
+        throw new Error(
+          body?.error?.message ?? body?.detail ?? `Analysis failed (${res.status})`
+        )
       }
-      refetch()
+      const body = await res.json()
+      setLiveResult(body.data)
+      // Delay refetch by 1 s to let the backend finish persisting the result
+      setTimeout(refetch, 1000)
     } catch (err) {
       setAnalyzeError(err.message ?? 'Analysis failed. Please try again.')
     } finally {
@@ -198,8 +267,8 @@ export default function ExperimentResults() {
 
   const sample = SAMPLE_DATA[id] ?? null
   const result = useMemo(
-    () => buildResult(experiment, sample),
-    [experiment, sample],
+    () => buildResultFromLive(liveResult, experiment) ?? buildResult(experiment, sample),
+    [experiment, sample, liveResult],
   )
 
   // --- Loading ---
@@ -282,7 +351,7 @@ export default function ExperimentResults() {
               This experiment has not been analysed. Run the stats and ML pipeline to see results here.
             </p>
             <Button variant="secondary" size="sm" loading={analyzing} onClick={runAnalysis}>
-              Run Analysis
+              {analyzing ? 'Running…' : 'Run Analysis'}
             </Button>
           </Card>
           {analyzeError && (

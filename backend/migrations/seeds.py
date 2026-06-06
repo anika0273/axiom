@@ -115,7 +115,13 @@ async def seed(session: AsyncSession) -> None:
 
 
 async def main() -> None:
+    from sqlalchemy import func, select
+
     async with AsyncSessionLocal() as session:
+        count = await session.scalar(select(func.count()).select_from(Experiment))
+        if count:
+            print(f"Database already has {count} experiment(s) — skipping seed.")
+            return
         await seed(session)
 
 
