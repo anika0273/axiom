@@ -75,7 +75,7 @@ export default function AIInterpretationPanel({ experimentId, experimentName, re
     })
   }
 
-  const displayText = text || (isFallback ? fallbackContent : '')
+  const displayText = text || fallbackContent
   const showSkeleton = streaming && !text
   const showText = displayText.length > 0
 
@@ -135,21 +135,6 @@ export default function AIInterpretationPanel({ experimentId, experimentName, re
       {/* Collapsible body */}
       {expanded && (
         <div className="px-6 pb-6">
-          {/* Prompt to start */}
-          {!started && (
-            <div className="text-center py-8">
-              <p
-                className="text-sm mb-4"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
-                Get a plain-English explanation of these results
-              </p>
-              <Button onClick={handleInterpret}>
-                Interpret Results →
-              </Button>
-            </div>
-          )}
-
           {/* Skeleton while streaming with no text yet */}
           {showSkeleton && (
             <div className="space-y-3 py-4">
@@ -196,9 +181,14 @@ export default function AIInterpretationPanel({ experimentId, experimentName, re
                 </span>
               )}
 
-              {/* Actions (shown after streaming completes) */}
+              {/* Actions (shown when not actively streaming) */}
               {!streaming && (
                 <div className="flex items-center gap-3 mt-5 pt-4 border-t border-subtle">
+                  {!started && (
+                    <Button size="sm" onClick={handleInterpret}>
+                      Interpret with AI →
+                    </Button>
+                  )}
                   <Link to={`/experiments/${experimentId}/report`}>
                     <Button variant="secondary" size="sm">
                       <FileText size={13} />
