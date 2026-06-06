@@ -7,6 +7,28 @@ import Button from '../ui/Button'
 const FALLBACK_TEXT =
   'AI interpretation is currently unavailable. View the raw statistics above to evaluate this experiment. The key metrics — p-value, confidence interval, and lift — are shown in the sections above. Consult your analytics team for a plain-language summary.'
 
+function buildFallbackFromResult(result) {
+  if (!result) return FALLBACK_TEXT
+  const liftStr =
+    result.liftPct != null
+      ? `${result.liftPct >= 0 ? '+' : ''}${result.liftPct.toFixed(1)}%`
+      : null
+  const pStr = result.pValue != null ? result.pValue.toFixed(4) : null
+  const sigVerdict = result.isSignificant
+    ? 'statistically significant'
+    : 'not statistically significant'
+  const rec = result.recommendation ? ` Recommendation: ${result.recommendation}.` : ''
+  const segNote = result.segments ? ' Segment analysis is available above.' : ''
+  const statsClause =
+    liftStr && pStr
+      ? ` The experiment shows a relative lift of ${liftStr} (p = ${pStr}), which is ${sigVerdict}.`
+      : ` The result is ${sigVerdict}.`
+  return (
+    `AI interpretation is currently unavailable. Based on the raw statistics:${statsClause}${rec}${segNote} ` +
+    `View the full metrics above for detailed results.`
+  )
+}
+
 function Cursor() {
   return (
     <span
@@ -21,8 +43,9 @@ function Cursor() {
  * @param {Object} props
  * @param {string} props.experimentId
  * @param {string} [props.experimentName]
+ * @param {Object|null} [props.result] - live result object for dynamic fallback text
  */
-export default function AIInterpretationPanel({ experimentId, experimentName }) {
+export default function AIInterpretationPanel({ experimentId, experimentName, result }) {
   const [expanded, setExpanded] = useState(false)
   const [started, setStarted] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -33,16 +56,18 @@ export default function AIInterpretationPanel({ experimentId, experimentName }) 
     startStream()
   }
 
+  const isFallback = !!(error || (!streaming && started && !text))
+  const fallbackContent = buildFallbackFromResult(result)
+
   const handleCopy = () => {
-    const content = text || FALLBACK_TEXT
+    const content = text || fallbackContent
     navigator.clipboard.writeText(content).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
   }
 
-  const isFallback = !!(error || (!streaming && started && !text))
-  const displayText = text || (isFallback ? FALLBACK_TEXT : '')
+  const displayText = text || (isFallback ? fallbackContent : '')
   const showSkeleton = streaming && !text
   const showText = displayText.length > 0
 

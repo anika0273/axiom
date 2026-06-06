@@ -36,11 +36,26 @@ function buildResultFromLive(liveData, experiment) {
       ? 'SIGNIFICANT'
       : 'NOT_SIGNIFICANT'
 
-  const ciLow = primary.confidence_interval ? primary.confidence_interval[0] * 100 : null
-  const ciHigh = primary.confidence_interval ? primary.confidence_interval[1] * 100 : null
+  const testType = primary.test_type ?? 'proportion'
+  const isProportion = testType === 'proportion'
+  const ciLow = primary.confidence_interval
+    ? isProportion
+      ? primary.confidence_interval[0] * 100
+      : primary.confidence_interval[0]
+    : null
+  const ciHigh = primary.confidence_interval
+    ? isProportion
+      ? primary.confidence_interval[1] * 100
+      : primary.confidence_interval[1]
+    : null
   const controlRate = experiment?.baseline_metric ?? 0
   const treatmentRate = controlRate + (primary.lift_abs ?? 0)
-  const ciHalfWidth = ciLow != null && ciHigh != null ? (ciHigh - ciLow) / 2 / 100 : null
+  const ciHalfWidth =
+    ciLow != null && ciHigh != null
+      ? isProportion
+        ? (ciHigh - ciLow) / 2 / 100
+        : (ciHigh - ciLow) / 2
+      : null
 
   return {
     verdict,
@@ -55,7 +70,8 @@ function buildResultFromLive(liveData, experiment) {
     controlN: null,
     treatmentN: null,
     recommendation: stats.overall_recommendation,
-    testType: primary.test_type,
+    testType,
+    expType: testType,
     interpretation: primary.interpretation,
     warnings: stats.warnings ?? [],
     plainEnglish: stats.plain_english,
@@ -100,18 +116,28 @@ function buildResult(experiment, sample) {
       ? 'SIGNIFICANT'
       : 'NOT_SIGNIFICANT'
 
+  const testType = primary.test_type ?? 'proportion'
+  const isProportion = testType === 'proportion'
   const ciLow = primary.confidence_interval
-    ? primary.confidence_interval[0] * 100
+    ? isProportion
+      ? primary.confidence_interval[0] * 100
+      : primary.confidence_interval[0]
     : null
   const ciHigh = primary.confidence_interval
-    ? primary.confidence_interval[1] * 100
+    ? isProportion
+      ? primary.confidence_interval[1] * 100
+      : primary.confidence_interval[1]
     : null
 
   const controlRate = experiment?.baseline_metric ?? 0
   const treatmentRate = controlRate + (primary.lift_abs ?? 0)
 
-  // Half CI-width as error bar on treatment bar
-  const ciHalfWidth = ciLow != null && ciHigh != null ? (ciHigh - ciLow) / 2 / 100 : null
+  const ciHalfWidth =
+    ciLow != null && ciHigh != null
+      ? isProportion
+        ? (ciHigh - ciLow) / 2 / 100
+        : (ciHigh - ciLow) / 2
+      : null
 
   const metrics = [
     {
@@ -142,7 +168,8 @@ function buildResult(experiment, sample) {
     controlN,
     treatmentN,
     recommendation: stats.overall_recommendation,
-    testType: primary.test_type,
+    testType,
+    expType: testType,
     interpretation: primary.interpretation,
     warnings: stats.warnings ?? [],
     plainEnglish: stats.plain_english,
@@ -359,7 +386,7 @@ export default function ExperimentResults() {
               {analyzeError}
             </Card>
           )}
-          <AIInterpretationPanel experimentId={id} experimentName={expName} />
+          <AIInterpretationPanel experimentId={id} experimentName={expName} result={null} />
         </div>
       )}
 
@@ -409,6 +436,7 @@ export default function ExperimentResults() {
             ciLow={result.ciLow}
             ciHigh={result.ciHigh}
             isSignificant={result.isSignificant}
+            expType={result.expType}
           />
 
           {/* SECTION 3 (WARNING): Non-critical anomaly flags */}
@@ -465,7 +493,7 @@ export default function ExperimentResults() {
 
           {/* SECTION 8: AI interpretation */}
           <div id="interpretation">
-            <AIInterpretationPanel experimentId={id} experimentName={expName} />
+            <AIInterpretationPanel experimentId={id} experimentName={expName} result={result} />
           </div>
         </>
       )}

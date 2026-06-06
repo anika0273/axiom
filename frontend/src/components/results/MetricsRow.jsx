@@ -1,8 +1,3 @@
-function fmtPct(v, decimals = 2) {
-  if (v == null) return '—'
-  return `${(v * 100).toFixed(decimals)}%`
-}
-
 function fmtN(n) {
   return n != null ? `n=${n.toLocaleString()} users` : ''
 }
@@ -10,14 +5,15 @@ function fmtN(n) {
 /**
  * Four StatCards in a horizontal row showing key experiment metrics.
  * @param {Object} props
- * @param {number} props.controlRate   - e.g. 0.10
- * @param {number} props.treatmentRate - e.g. 0.2226
+ * @param {number} props.controlRate   - proportion: ratio (0.10); mean: raw value (45.0)
+ * @param {number} props.treatmentRate - proportion: ratio (0.2226); mean: raw value (50.0)
  * @param {number|null} props.controlN
  * @param {number|null} props.treatmentN
  * @param {number} props.liftPct       - relative lift %, e.g. 119.4
- * @param {number|null} props.ciLow    - absolute pp, e.g. 10.84
- * @param {number|null} props.ciHigh   - absolute pp, e.g. 13.68
+ * @param {number|null} props.ciLow    - proportion: pp (10.84); mean: metric units (4.58)
+ * @param {number|null} props.ciHigh   - proportion: pp (13.68); mean: metric units (5.42)
  * @param {boolean} props.isSignificant
+ * @param {string} [props.expType]     - 'proportion' | 'mean' | 'ratio'
  */
 export default function MetricsRow({
   controlRate,
@@ -28,7 +24,16 @@ export default function MetricsRow({
   ciLow,
   ciHigh,
   isSignificant,
+  expType,
 }) {
+  const isProportion = !expType || expType === 'proportion'
+
+  const fmtRate = (v) => {
+    if (v == null) return '—'
+    if (isProportion) return `${(v * 100).toFixed(2)}%`
+    return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
   const sigColor = isSignificant ? 'var(--color-accent-green)' : 'var(--color-text-muted)'
   const liftColor =
     liftPct < 0
@@ -41,21 +46,26 @@ export default function MetricsRow({
 
   let ciStr = '—'
   if (ciLow != null && ciHigh != null) {
-    const fmt = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
-    ciStr = `[${fmt(ciLow)}, ${fmt(ciHigh)}]`
+    if (isProportion) {
+      const fmt = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
+      ciStr = `[${fmt(ciLow)}, ${fmt(ciHigh)}]`
+    } else {
+      const fmt = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
+      ciStr = `[${fmt(ciLow)}, ${fmt(ciHigh)}]`
+    }
   }
 
   const cards = [
     {
       label: 'Control Rate',
-      value: fmtPct(controlRate),
+      value: fmtRate(controlRate),
       sub: fmtN(controlN),
       accentColor: 'var(--color-text-muted)',
       valueColor: 'var(--color-text-primary)',
     },
     {
       label: 'Treatment Rate',
-      value: fmtPct(treatmentRate),
+      value: fmtRate(treatmentRate),
       sub: fmtN(treatmentN),
       accentColor: sigColor,
       valueColor: 'var(--color-text-primary)',
