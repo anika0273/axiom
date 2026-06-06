@@ -17,10 +17,17 @@ function buildFallbackFromResult(liveResult) {
   const primary = liveResult.stats?.primary_result
   if (!primary) return FALLBACK_NO_ANALYSIS
 
+  const REC_LABELS = {
+    STOP_WIN: 'SHIP',
+    STOP_LOSE: 'DO NOT SHIP',
+    DO_NOT_SHIP: 'DO NOT SHIP',
+    RUN: 'CONTINUE RUNNING',
+  }
   const liftPct = primary.lift_pct
   const pValue = primary.p_value
   const isSignificant = primary.is_significant
-  const recommendation = liveResult.stats?.overall_recommendation
+  const rawRec = liveResult.stats?.overall_recommendation
+  const recommendation = rawRec ? (REC_LABELS[rawRec] ?? rawRec) : null
   const hasSegments = !!(liveResult.ml?.segments)
 
   const liftStr =

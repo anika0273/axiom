@@ -20,6 +20,17 @@ import SequentialChart from '../components/charts/SequentialChart'
 
 const API_BASE = 'http://localhost:8000'
 
+const REC_LABELS = {
+  STOP_WIN: 'SHIP',
+  STOP_LOSE: 'DO NOT SHIP',
+  DO_NOT_SHIP: 'DO NOT SHIP',
+  RUN: 'CONTINUE RUNNING',
+}
+function mapRecommendation(code) {
+  if (!code) return null
+  return REC_LABELS[code] ?? code
+}
+
 function buildResultFromLive(liveData, experiment) {
   if (!liveData) return null
   const { stats, ml } = liveData
@@ -37,7 +48,10 @@ function buildResultFromLive(liveData, experiment) {
       : 'NOT_SIGNIFICANT'
 
   const testType = primary.test_type ?? 'proportion'
-  const isProportion = testType === 'proportion'
+  // Use experiment_type (guaranteed 'proportion'/'mean') for formatting decisions;
+  // primary.test_type is the statistical method name (e.g. 'z_test'), not the experiment type.
+  const expType = experiment?.experiment_type ?? 'proportion'
+  const isProportion = expType === 'proportion'
   const ciLow = primary.confidence_interval
     ? isProportion
       ? primary.confidence_interval[0] * 100
@@ -69,9 +83,9 @@ function buildResultFromLive(liveData, experiment) {
     treatmentRate,
     controlN: null,
     treatmentN: null,
-    recommendation: stats.overall_recommendation,
+    recommendation: mapRecommendation(stats.overall_recommendation),
     testType,
-    expType: testType,
+    expType,
     interpretation: primary.interpretation,
     warnings: stats.warnings ?? [],
     plainEnglish: stats.plain_english,
@@ -117,7 +131,8 @@ function buildResult(experiment, sample) {
       : 'NOT_SIGNIFICANT'
 
   const testType = primary.test_type ?? 'proportion'
-  const isProportion = testType === 'proportion'
+  const expType = experiment?.experiment_type ?? 'proportion'
+  const isProportion = expType === 'proportion'
   const ciLow = primary.confidence_interval
     ? isProportion
       ? primary.confidence_interval[0] * 100
@@ -167,9 +182,9 @@ function buildResult(experiment, sample) {
     treatmentRate,
     controlN,
     treatmentN,
-    recommendation: stats.overall_recommendation,
+    recommendation: mapRecommendation(stats.overall_recommendation),
     testType,
-    expType: testType,
+    expType,
     interpretation: primary.interpretation,
     warnings: stats.warnings ?? [],
     plainEnglish: stats.plain_english,
