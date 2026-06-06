@@ -9,7 +9,7 @@
 | FastAPI backend | ✓ 36/36 API tests passing | `backend/app/api/v1/` — stats, ml, experiments endpoints; `POST /{id}/analyze` added 2026-06-06 |
 | Docker + PostgreSQL | ✓ Both containers healthy | `docker-compose.yml` — multi-stage build, non-root user, healthchecks |
 | Database schema | ✓ Migration applied | 4 tables: `experiments`, `experiment_results`, `experiment_metrics`, `ai_interactions` |
-| Sample data | ✓ Seeds loaded | `backend/migrations/seeds.py` — one complete experiment with result, metrics, AI log |
+| Sample data | ✓ Seeds loaded | `backend/migrations/seeds.py` — 3 realistic experiments (e-commerce, SaaS, marketplace); idempotent |
 | Stats coverage | 96% line coverage | Gaps: power.py edge branches (86%), engine.py error paths (96%) |
 
 ### Phase 2 — ML Engine (complete 2026-05-05)

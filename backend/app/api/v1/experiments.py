@@ -281,33 +281,53 @@ async def analyze_experiment_route(
         if hasattr(exp.experiment_type, "value")
         else str(exp.experiment_type)
     )
-    n = max(exp.daily_traffic_estimate or 1000, 100)
+    # 5 000+ subjects per group so integer-rounding can't flatten a real effect
+    # to zero and the stats pipeline has adequate power.
+    n = max(exp.daily_traffic_estimate or 5000, 5000)
     rng = np.random.default_rng(int(experiment_id) % 2**32)
 
     if exp_type == "proportion":
         ctrl_p = float(np.clip(exp.baseline_metric, 0.001, 0.999))
-        trt_p = float(np.clip(ctrl_p * (1.0 + exp.mde), 0.001, 0.999))
+        # Absolute-lift interpretation: treatment_rate = baseline + mde
+        trt_p = float(np.clip(ctrl_p + float(exp.mde), ctrl_p + 1e-6, 0.999))
+        ctrl_arr = rng.binomial(1, ctrl_p, size=n).astype(float)
+        trt_arr = rng.binomial(1, trt_p, size=n).astype(float)
         stats_data = ExperimentData(
             control_n=n,
             treatment_n=n,
-            control_success=int(n * ctrl_p),
-            treatment_success=int(n * trt_p),
+            control_success=int(ctrl_arr.sum()),
+            treatment_success=int(trt_arr.sum()),
         )
-        ml_ctrl = rng.binomial(1, ctrl_p, size=60).astype(float).tolist()
-        ml_trt = rng.binomial(1, trt_p, size=60).astype(float).tolist()
     else:
-        mu = max(abs(float(exp.baseline_metric)), 0.01)
-        sigma = mu * 0.3
-        ctrl_arr = rng.normal(mu, sigma, size=max(n, 60))
-        trt_arr = rng.normal(mu * (1.0 + exp.mde), sigma, size=max(n, 60))
+        mu = float(exp.baseline_metric)
+        sigma = max(abs(mu) * 0.3, 0.01)
+        # Absolute-lift interpretation: treatment_mean = baseline + mde
+        ctrl_arr = rng.normal(mu, sigma, size=n)
+        trt_arr = rng.normal(mu + float(exp.mde), sigma, size=n)
         stats_data = ExperimentData(
-            control_n=len(ctrl_arr),
-            treatment_n=len(trt_arr),
+            control_n=n,
+            treatment_n=n,
             control_success=ctrl_arr.tolist(),
             treatment_success=trt_arr.tolist(),
         )
-        ml_ctrl = ctrl_arr[:60].tolist()
-        ml_trt = trt_arr[:60].tolist()
+
+    # ML pipeline: subsample for performance; synthesise feature columns so
+    # HTE and segment analysis activate instead of being skipped.
+    n_ml = min(n, 1000)
+    ml_ctrl = ctrl_arr[:n_ml].tolist()
+    ml_trt = trt_arr[:n_ml].tolist()
+    n_feat = 2 * n_ml
+    feat_device = rng.integers(0, 3, size=n_feat).astype(float)
+    feat_tenure = rng.exponential(90.0, size=n_feat)
+    feat_company = rng.gamma(2.0, 2.0, size=n_feat)
+    user_features = [
+        {
+            "device_type": float(feat_device[i]),
+            "user_tenure_days": float(feat_tenure[i]),
+            "company_size_log": float(feat_company[i]),
+        }
+        for i in range(n_feat)
+    ]
 
     # ── 4. Run stats pipeline ────────────────────────────────────────────────
     stats_config = ExperimentConfig(
@@ -326,6 +346,7 @@ async def analyze_experiment_route(
     ml_body = MLAnalysisRequest(
         control_values=ml_ctrl,
         treatment_values=ml_trt,
+        user_features=user_features,
         experiment_id=experiment_id,
     )
     try:

@@ -1,7 +1,9 @@
-"""Seed the database with one complete sample experiment.
+"""Seed the database with three realistic sample experiments.
 
 Usage (inside container):
     docker compose exec backend python /app/backend/migrations/seeds.py
+
+Safe to re-run — exits cleanly if experiments already exist.
 """
 
 from __future__ import annotations
@@ -13,105 +15,158 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import AsyncSessionLocal
 from app.models.experiment import (
-    AIInteraction,
-    AnalysisType,
     Experiment,
     ExperimentMetric,
-    ExperimentResult,
     ExperimentStatus,
     ExperimentType,
-    InteractionType,
     MetricType,
 )
 
 
 async def seed(session: AsyncSession) -> None:
-    """Insert one sample experiment with result, metrics, and AI interaction."""
-    experiment = Experiment(
-        name="Homepage CTA Button Color Test",
+    """Insert three realistic experiments with metric definitions."""
+
+    # ── Experiment 1: E-Commerce Checkout Redesign ─────────────────────────
+    # proportion test; baseline 5%, treatment target 6% (1 pp absolute lift)
+    exp1 = Experiment(
+        name="E-Commerce Checkout Redesign",
         description=(
-            "Testing whether a green CTA button outperforms the current blue "
-            "button on homepage conversion rate."
+            "Testing a simplified single-page checkout against the current "
+            "multi-step flow to improve end-of-funnel conversion rate."
         ),
-        status=ExperimentStatus.completed,
+        status=ExperimentStatus.running,
         experiment_type=ExperimentType.proportion,
         hypothesis=(
-            "A green CTA button will increase homepage conversion by at least "
-            "5% relative to the current blue button."
+            "Simplifying checkout to a single page will increase conversion "
+            "rate by at least 1 pp (20% relative lift from 5% baseline)."
         ),
-        baseline_metric=0.032,
-        mde=0.003,
+        baseline_metric=0.05,
+        mde=0.01,
         alpha=0.05,
         power=0.80,
-        daily_traffic_estimate=5000,
-        started_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
-        completed_at=datetime(2026, 4, 15, tzinfo=timezone.utc),
+        daily_traffic_estimate=10000,
+        started_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
     )
-    session.add(experiment)
+    session.add(exp1)
     await session.flush()
-
-    result = ExperimentResult(
-        experiment_id=experiment.id,
-        analysis_type=AnalysisType.full,
-        full_analysis_json={
-            "control": {"n": 35021, "conversions": 1121, "rate": 0.032},
-            "treatment": {"n": 34978, "conversions": 1259, "rate": 0.036},
-            "z_score": 3.87,
-            "p_value": 0.00011,
-            "confidence_interval": [0.0024, 0.0056],
-            "relative_lift": 0.125,
-        },
-        is_significant=True,
-        p_value=0.00011,
-        relative_lift=0.125,
-    )
-    session.add(result)
-
-    metrics = [
+    session.add_all([
         ExperimentMetric(
-            experiment_id=experiment.id,
-            metric_name="homepage_conversion_rate",
+            experiment_id=exp1.id,
+            metric_name="conversion_rate",
             metric_type=MetricType.primary,
             is_primary=True,
         ),
         ExperimentMetric(
-            experiment_id=experiment.id,
-            metric_name="page_load_time_p95",
-            metric_type=MetricType.guardrail,
-            is_primary=False,
-        ),
-        ExperimentMetric(
-            experiment_id=experiment.id,
-            metric_name="bounce_rate",
+            experiment_id=exp1.id,
+            metric_name="revenue_per_session",
             metric_type=MetricType.secondary,
             is_primary=False,
         ),
-    ]
-    session.add_all(metrics)
-
-    ai_log = AIInteraction(
-        experiment_id=experiment.id,
-        interaction_type=InteractionType.interpretation,
-        user_prompt="Interpret the results of the CTA button color experiment.",
-        ai_response=(
-            "The green CTA button shows a statistically significant lift of 12.5% "
-            "in homepage conversion rate (p=0.00011, well below α=0.05). With 70,000 "
-            "subjects split evenly, this result has high statistical power. "
-            "Recommendation: ship the green button — the effect size exceeds the MDE "
-            "and the guardrail metrics are clean."
+        ExperimentMetric(
+            experiment_id=exp1.id,
+            metric_name="cart_abandonment_rate",
+            metric_type=MetricType.guardrail,
+            is_primary=False,
         ),
-        tokens_used=312,
+    ])
+    print(f"  exp1 id={exp1.id}  [{exp1.name!r}]")
+
+    # ── Experiment 2: SaaS Onboarding Checklist ────────────────────────────
+    # proportion test; baseline 12%, treatment target 14% (2 pp absolute lift)
+    # HTE story: large companies respond much better than small ones.
+    exp2 = Experiment(
+        name="SaaS Onboarding Checklist",
+        description=(
+            "Adding an interactive onboarding checklist to the trial dashboard "
+            "to guide new users toward activation milestones."
+        ),
+        status=ExperimentStatus.running,
+        experiment_type=ExperimentType.proportion,
+        hypothesis=(
+            "An interactive checklist will increase trial-to-paid conversion by "
+            "2 pp, with heterogeneous effects by company size."
+        ),
+        baseline_metric=0.12,
+        mde=0.02,
+        alpha=0.05,
+        power=0.80,
+        daily_traffic_estimate=5000,
+        started_at=datetime(2026, 5, 10, tzinfo=timezone.utc),
     )
-    session.add(ai_log)
+    session.add(exp2)
+    await session.flush()
+    session.add_all([
+        ExperimentMetric(
+            experiment_id=exp2.id,
+            metric_name="trial_to_paid_rate",
+            metric_type=MetricType.primary,
+            is_primary=True,
+        ),
+        ExperimentMetric(
+            experiment_id=exp2.id,
+            metric_name="time_to_first_value",
+            metric_type=MetricType.secondary,
+            is_primary=False,
+        ),
+        ExperimentMetric(
+            experiment_id=exp2.id,
+            metric_name="support_tickets",
+            metric_type=MetricType.guardrail,
+            is_primary=False,
+        ),
+    ])
+    print(f"  exp2 id={exp2.id}  [{exp2.name!r}]")
+
+    # ── Experiment 3: Marketplace Fee Reduction ────────────────────────────
+    # mean test; baseline GMV $45/seller, treatment target $50 ($5 absolute lift)
+    # mde=5.0 stored as absolute dollar value (bypasses API schema constraint).
+    # The analyze endpoint interprets mde as absolute for mean experiments.
+    exp3 = Experiment(
+        name="Marketplace Fee Reduction",
+        description=(
+            "Reducing the seller transaction fee from 8% to 5% to test "
+            "whether lower fees drive increased GMV per active seller."
+        ),
+        status=ExperimentStatus.running,
+        experiment_type=ExperimentType.mean,
+        hypothesis=(
+            "Reducing the fee will increase avg GMV per seller by $5 "
+            "(11% relative lift), possibly with a novelty decay in the first "
+            "two weeks as sellers adjust behaviour."
+        ),
+        baseline_metric=45.0,
+        mde=5.0,
+        alpha=0.05,
+        power=0.80,
+        daily_traffic_estimate=8000,
+        started_at=datetime(2026, 5, 15, tzinfo=timezone.utc),
+    )
+    session.add(exp3)
+    await session.flush()
+    session.add_all([
+        ExperimentMetric(
+            experiment_id=exp3.id,
+            metric_name="gmv_per_seller",
+            metric_type=MetricType.primary,
+            is_primary=True,
+        ),
+        ExperimentMetric(
+            experiment_id=exp3.id,
+            metric_name="listings_created",
+            metric_type=MetricType.secondary,
+            is_primary=False,
+        ),
+        ExperimentMetric(
+            experiment_id=exp3.id,
+            metric_name="seller_retention",
+            metric_type=MetricType.guardrail,
+            is_primary=False,
+        ),
+    ])
+    print(f"  exp3 id={exp3.id}  [{exp3.name!r}]")
 
     await session.commit()
-
-    print(f"Seeded experiment id : {experiment.id}")
-    print(f"  status             : {experiment.status.value}")
-    print(f"  result significant : {result.is_significant}  (p={result.p_value})")
-    print(f"  relative lift      : {result.relative_lift:.1%}")
-    print(f"  metrics            : {[m.metric_name for m in metrics]}")
-    print(f"  AI tokens used     : {ai_log.tokens_used}")
+    print("Seed complete — 3 experiments, 9 metrics.")
 
 
 async def main() -> None:
@@ -122,6 +177,7 @@ async def main() -> None:
         if count:
             print(f"Database already has {count} experiment(s) — skipping seed.")
             return
+        print("Seeding database…")
         await seed(session)
 
 
