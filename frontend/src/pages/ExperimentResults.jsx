@@ -493,7 +493,12 @@ export default function ExperimentResults() {
 
           {/* SECTION 8: AI interpretation */}
           <div id="interpretation">
-            <AIInterpretationPanel experimentId={id} experimentName={expName} result={result} />
+            <AIInterpretationPanel
+              key={liveResult?.result_id ?? 'static'}
+              experimentId={id}
+              experimentName={expName}
+              result={liveResult}
+            />
           </div>
         </>
       )}

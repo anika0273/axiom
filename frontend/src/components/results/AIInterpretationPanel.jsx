@@ -4,29 +4,37 @@ import { Link } from 'react-router-dom'
 import { useStreamingInterpretation } from '../../hooks/useStreamingInterpretation'
 import Button from '../ui/Button'
 
-const FALLBACK_TEXT =
-  'AI interpretation is currently unavailable. View the raw statistics above to evaluate this experiment. The key metrics — p-value, confidence interval, and lift — are shown in the sections above. Consult your analytics team for a plain-language summary.'
+const FALLBACK_NO_ANALYSIS =
+  'No analysis has been run yet. Click "Run Analysis" to generate stats and ML results, then open this panel for a plain-English summary.'
 
-function buildFallbackFromResult(result) {
-  if (!result) return FALLBACK_TEXT
+function fmtP(p) {
+  if (p == null) return null
+  return p < 0.001 ? 'p<0.001' : `p=${p.toFixed(4)}`
+}
+
+function buildFallbackFromResult(liveResult) {
+  if (!liveResult) return FALLBACK_NO_ANALYSIS
+  const primary = liveResult.stats?.primary_result
+  if (!primary) return FALLBACK_NO_ANALYSIS
+
+  const liftPct = primary.lift_pct
+  const pValue = primary.p_value
+  const isSignificant = primary.is_significant
+  const recommendation = liveResult.stats?.overall_recommendation
+  const hasSegments = !!(liveResult.ml?.segments)
+
   const liftStr =
-    result.liftPct != null
-      ? `${result.liftPct >= 0 ? '+' : ''}${result.liftPct.toFixed(1)}%`
-      : null
-  const pStr = result.pValue != null ? result.pValue.toFixed(4) : null
-  const sigVerdict = result.isSignificant
-    ? 'statistically significant'
-    : 'not statistically significant'
-  const rec = result.recommendation ? ` Recommendation: ${result.recommendation}.` : ''
-  const segNote = result.segments ? ' Segment analysis is available above.' : ''
-  const statsClause =
-    liftStr && pStr
-      ? ` The experiment shows a relative lift of ${liftStr} (p = ${pStr}), which is ${sigVerdict}.`
-      : ` The result is ${sigVerdict}.`
-  return (
-    `AI interpretation is currently unavailable. Based on the raw statistics:${statsClause}${rec}${segNote} ` +
-    `View the full metrics above for detailed results.`
-  )
+    liftPct != null ? `${liftPct >= 0 ? '+' : ''}${liftPct.toFixed(1)}%` : null
+  const pStr = fmtP(pValue)
+
+  const sigClause = isSignificant
+    ? 'The treatment produced a statistically significant effect'
+    : 'The treatment did not produce a statistically significant effect'
+  const detail = liftStr && pStr ? ` (observed lift: ${liftStr}, ${pStr})` : ''
+  const recStr = recommendation ? ` Recommendation: ${recommendation}.` : ''
+  const segNote = hasSegments ? ' Segment analysis is available above.' : ''
+
+  return `${sigClause}${detail}.${recStr}${segNote} View the full metrics above for detailed results.`
 }
 
 function Cursor() {
