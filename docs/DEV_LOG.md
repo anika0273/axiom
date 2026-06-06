@@ -360,4 +360,62 @@ Add interaction tests, not just render tests.
 
 ---
 
-*Last updated: 2026-06-05*
+---
+
+## 2026-06-06 — Missing `POST /api/v1/experiments/{id}/analyze` endpoint
+
+**What broke:** The "Run Analysis" button added in the previous session called
+`POST /api/v1/ml/experiments/{id}/analysis` (the ML-only trigger). There was
+no endpoint that ran the **complete** stats + ML pipeline for a stored
+experiment and returned both results in one call — the frontend's
+`ExperimentResults` page had no way to surface stats output from a button click.
+
+**How I fixed it:**
+
+*`backend/app/repositories/experiment_repo.py`:*
+Added `get_metrics(db, experiment_id) → list[ExperimentMetric]`. This fetches
+all metric configuration rows for an experiment, and is the gating check
+for whether the pipeline can run (422 if no rows exist).
+
+*`backend/app/api/v1/experiments.py`:*
+- Added two new Pydantic response schemas: `ExperimentAnalyzeData` (wraps
+  `AnalysisData` from the stats engine and `MLAnalysisResultData` from the
+  ML engine, plus `experiment_id` and `result_id`) and
+  `ExperimentAnalyzeResponse` (standard `{data, meta}` envelope).
+- Added `POST /{experiment_id}/analyze` (rate-limited 10/min). The endpoint:
+  1. Fetches the experiment (404 if absent).
+  2. Fetches its metric rows (422 if none configured).
+  3. Synthesises per-subject outcome data from `baseline_metric`, `mde`, and
+     `experiment_type` — Bernoulli samples for proportion experiments, Normal
+     for mean/ratio (both seeded from the experiment UUID for reproducibility).
+  4. Runs `analyze_experiment(ExperimentConfig, ExperimentData)` for the full
+     stats pipeline (z-test, sequential, CUPED, corrections).
+  5. Runs `analysis_service.run_analysis(MLAnalysisRequest, db)` for the full
+     ML pipeline (anomaly, novelty, HTE, segments); this also persists the
+     result via `result_repo.store_result`.
+  6. Returns `ExperimentAnalyzeResponse` combining both results.
+
+*`backend/tests/api/test_experiments_analyze.py`:*
+8 new tests covering 404 (experiment not found), 422 (no metrics), happy-path
+200 for both proportion and mean experiment types, and response shape assertions
+for the stats and ML sections.
+
+All 8 tests pass. ruff + isort clean.
+
+*Git commit: (pending)*
+
+**Proof it works:**
+```
+pytest backend/tests/api/test_experiments_analyze.py -v
+8 passed in 1.11s
+```
+
+**What I learned:** The `http_exception_handler` in `app/exceptions.py` wraps
+all `HTTPException` responses in the standard error envelope
+`{"error": {"code": "...", "message": "..."}}` — not FastAPI's default
+`{"detail": "..."}`. Any test asserting on error response bodies must use
+`r.json()["error"]["message"]`, not `r.json()["detail"]`.
+
+---
+
+*Last updated: 2026-06-06*

@@ -7,7 +7,12 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.experiment import Experiment, ExperimentStatus, ExperimentType
+from app.models.experiment import (
+    Experiment,
+    ExperimentMetric,
+    ExperimentStatus,
+    ExperimentType,
+)
 from app.schemas.ml import ExperimentCreate
 
 
@@ -50,6 +55,25 @@ async def get_experiment(db: AsyncSession, experiment_id: UUID) -> Experiment | 
         Experiment instance or None.
     """
     return await db.get(Experiment, experiment_id)
+
+
+async def get_metrics(
+    db: AsyncSession,
+    experiment_id: UUID,
+) -> list[ExperimentMetric]:
+    """Return all metrics configured for an experiment.
+
+    Args:
+        db: Active async session.
+        experiment_id: Experiment whose metrics to fetch.
+
+    Returns:
+        List of ExperimentMetric rows; empty if none are configured.
+    """
+    result = await db.execute(
+        select(ExperimentMetric).where(ExperimentMetric.experiment_id == experiment_id)
+    )
+    return list(result.scalars().all())
 
 
 async def list_experiments(

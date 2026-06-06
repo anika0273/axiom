@@ -6,7 +6,7 @@
 | Component | Status | Detail |
 |---|---|---|
 | Stats engine | ✓ 430/430 tests passing | `backend/app/stats/` — z-test, t-test, CUPED, sequential, corrections, power |
-| FastAPI backend | ✓ 28/28 API tests passing | `backend/app/api/v1/` — stats endpoints, middleware, rate limiting |
+| FastAPI backend | ✓ 36/36 API tests passing | `backend/app/api/v1/` — stats, ml, experiments endpoints; `POST /{id}/analyze` added 2026-06-06 |
 | Docker + PostgreSQL | ✓ Both containers healthy | `docker-compose.yml` — multi-stage build, non-root user, healthchecks |
 | Database schema | ✓ Migration applied | 4 tables: `experiments`, `experiment_results`, `experiment_metrics`, `ai_interactions` |
 | Sample data | ✓ Seeds loaded | `backend/migrations/seeds.py` — one complete experiment with result, metrics, AI log |
