@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { RefreshCw, FileText, ArrowLeft } from 'lucide-react'
 
@@ -170,6 +170,32 @@ export default function ExperimentResults() {
     }
   }, [hash, loading])
 
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analyzeError, setAnalyzeError] = useState(null)
+
+  const runAnalysis = useCallback(async () => {
+    setAnalyzing(true)
+    setAnalyzeError(null)
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/v1/ml/experiments/${id}/analysis`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.detail ?? `Analysis failed (${res.status})`)
+      }
+      refetch()
+    } catch (err) {
+      setAnalyzeError(err.message ?? 'Analysis failed. Please try again.')
+    } finally {
+      setAnalyzing(false)
+    }
+  }, [id, refetch])
+
   const sample = SAMPLE_DATA[id] ?? null
   const result = useMemo(
     () => buildResult(experiment, sample),
@@ -255,10 +281,15 @@ export default function ExperimentResults() {
             <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
               This experiment has not been analysed. Run the stats and ML pipeline to see results here.
             </p>
-            <Button variant="secondary" size="sm">
+            <Button variant="secondary" size="sm" loading={analyzing} onClick={runAnalysis}>
               Run Analysis
             </Button>
           </Card>
+          {analyzeError && (
+            <Card variant="accent" accentColor="red" className="p-4 text-sm text-center" style={{ color: 'var(--color-accent-red)' }}>
+              {analyzeError}
+            </Card>
+          )}
           <AIInterpretationPanel experimentId={id} experimentName={expName} />
         </div>
       )}

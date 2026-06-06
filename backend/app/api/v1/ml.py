@@ -329,6 +329,75 @@ async def get_experiment_analysis(
     return MLAnalysisResponse(data=result_data)
 
 
+# ---------------------------------------------------------------------------
+# Trigger ML analysis for an experiment by ID
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/experiments/{experiment_id}/analysis",
+    response_model=MLAnalysisResponse,
+    summary="Trigger ML analysis for an experiment",
+    description=(
+        "Fetches the experiment configuration, generates representative outcome "
+        "data from baseline_metric / mde / experiment_type, and runs the full "
+        "ML pipeline (anomaly, novelty, HTE, segments). The result is stored "
+        "against the experiment and returned. Re-running overwrites the previous "
+        "analysis."
+    ),
+)
+@limiter.limit("10/minute")
+async def trigger_experiment_analysis(
+    request: Request,
+    response: Response,
+    experiment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> MLAnalysisResponse:
+    """Run the full ML pipeline for an experiment using its stored configuration."""
+    import numpy as np
+
+    from app.models.experiment import ExperimentType
+    from app.repositories import experiment_repo
+
+    req_id = get_request_id(request)
+    logger.info("trigger_analysis req=%s exp_id=%s", req_id, experiment_id)
+
+    exp = await experiment_repo.get_experiment(db, experiment_id)
+    if exp is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Experiment {experiment_id} not found.",
+        )
+
+    # Seed the RNG from the experiment id for reproducible results.
+    rng = np.random.default_rng(int(experiment_id) % 2**32)
+    n = 60  # 60 per group — comfortably above the min_length=10 requirement
+
+    if exp.experiment_type == ExperimentType.proportion:
+        ctrl_p = float(np.clip(exp.baseline_metric, 0.01, 0.99))
+        trt_p = float(np.clip(ctrl_p * (1.0 + exp.mde), 0.01, 0.99))
+        control_values = rng.binomial(1, ctrl_p, size=n).astype(float).tolist()
+        treatment_values = rng.binomial(1, trt_p, size=n).astype(float).tolist()
+    else:
+        mu = max(abs(float(exp.baseline_metric)), 0.01)
+        sigma = mu * 0.3
+        control_values = rng.normal(mu, sigma, size=n).tolist()
+        treatment_values = rng.normal(mu * (1.0 + exp.mde), sigma, size=n).tolist()
+
+    body = MLAnalysisRequest(
+        control_values=control_values,
+        treatment_values=treatment_values,
+        experiment_id=experiment_id,
+    )
+
+    try:
+        result_data = await analysis_service.run_analysis(body, db=db)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return MLAnalysisResponse(data=result_data)
+
+
 def MLAnalysisResultData_from_json(
     payload: dict,
     record,
