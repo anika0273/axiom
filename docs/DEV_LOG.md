@@ -418,4 +418,311 @@ all `HTTPException` responses in the standard error envelope
 
 ---
 
+---
+
+## 2026-06-06 — "Run Analysis" button wired end-to-end (post-analysis page refresh)
+
+**What broke:** After the initial button wiring (see 2026-06-05 entry), clicking
+"Run Analysis" fired the network request and got back a result, but the page
+never updated. The stats cards, charts, and verdict banner stayed blank because
+`liveResult` was set in state but nothing re-ran the data-shaping logic. The
+user had to manually click "Recompute" to see results.
+
+**Why it broke:** `buildResultFromLive(liveData, experiment)` was called inside
+a `useMemo` that depended on `[experiment, sample, liveResult]`. When
+`setLiveResult(body.data)` fired, React re-ran the memo, but `experiment` (the
+object from `useAPI`) was still the *old* fetch — the backend hadn't persisted
+the new result yet when the frontend re-read it. Because the memo ran before
+the DB write completed, `buildResultFromLive` returned `null`, and the page
+fell back to blank or sample data.
+
+**How I fixed it** (`frontend/src/pages/ExperimentResults.jsx`):
+- After `setLiveResult(body.data)`, added a 1 second delay then called
+  `refetch()` to re-fetch the experiment object from the API. This gives the
+  backend enough time to finish persisting the result before the frontend
+  re-reads it.
+- The `useMemo` already prioritises `buildResultFromLive` over `buildResult`,
+  so once `liveResult` is set the page renders from live data immediately;
+  the delayed `refetch()` just ensures the stored result is also updated.
+
+*Git commit: `2ec69bb` — fix: post-analysis page refresh (liveResult state + delayed refetch)*
+
+**Proof it works:** Clicking "Run Analysis" shows results within 2 seconds
+without any manual refresh step.
+
+**What I learned:** When a POST writes to a DB and the frontend immediately
+re-reads that DB via a GET, race conditions are common. A short `setTimeout`
+before `refetch()` is an acceptable pragmatic fix for a prototype. The
+production-grade approach is to return the full persisted result in the POST
+response and avoid the second GET entirely.
+
+---
+
+## 2026-06-06 — Synthesized data produced p=1.000, lift=0%
+
+**What broke:** Every experiment run through "Run Analysis" returned identical
+results: p=1.0000, lift=+0.0%, verdict NOT SIGNIFICANT. The stats engine ran
+correctly — it was receiving genuinely identical data.
+
+**Why it broke:** The data synthesis formula for proportion experiments used:
+```python
+trt_p = ctrl_p * (1 + mde)  # e.g. 0.032 * 1.003 = 0.032096
+```
+With `n=60` subjects per group, `int(60 * 0.032096) = 1` — the same integer
+as `int(60 * 0.032) = 1`. Integer rounding erased the entire effect. The
+control and treatment groups were literally identical arrays.
+
+**How I fixed it** (`backend/app/api/v1/experiments.py`):
+- Changed to absolute lift: `trt_p = ctrl_p + mde` (e.g. `0.05 + 0.01 = 0.06`)
+  instead of relative lift. This guarantees a real difference even at small MDE.
+- Increased minimum sample size from 60 to `max(daily_traffic_estimate, 5000)`,
+  so integer rounding cannot flatten a real effect to zero.
+- Added synthetic user feature columns (`device_type`, `user_tenure_days`,
+  `company_size_log`) generated from the same seeded RNG, then passed as
+  `user_features` to `MLAnalysisRequest`. Without these, the ML engine skips
+  HTE and segment analysis entirely (they require feature columns to work).
+
+**Proof it works:** After the fix, all three seed experiments produce meaningful
+results — e.g. E-Commerce: p=0.000078 lift=+26%, SaaS: p=0.004515 lift=+16%,
+Marketplace: p<0.000001 lift=+10%. HTE and segment tables populate.
+
+**What I learned:** When synthesizing test data, always verify your formula
+produces a real difference by printing or asserting `sum(control) ≠ sum(treatment)`
+before wiring it into the pipeline. Relative-lift formulas (`* (1 + mde)`) with
+small MDE values are especially vulnerable to integer-rounding erasure at small N.
+Use absolute lift (`+ mde`) when the MDE is already in absolute units.
+
+---
+
+## 2026-06-06 — Seed experiments had unrealistic parameters (97M subjects needed)
+
+**What broke:** The sample experiments loaded by `seeds.py` had parameters that
+required tens of millions of subjects to achieve statistical power — numbers no
+experiment in the demo UI would realistically reach. The power calculator output
+"97,200,000 subjects per group" for one of them.
+
+**Why it broke:** The original seed used `baseline_metric=0.032, mde=0.003`.
+A 0.3 percentage-point lift on a 3.2% baseline is a 9.4% relative improvement
+— plausible in real life but requiring huge samples. The parameters were
+placeholder values, not vetted for the demo context.
+
+**How I fixed it** (`backend/migrations/seeds.py`):
+Replaced all three experiments with realistic, self-consistent parameter sets:
+
+| Experiment | Type | Baseline | MDE | Required N |
+|---|---|---|---|---|
+| E-Commerce Checkout Redesign | proportion | 5% | +1 pp | ~8,000 |
+| SaaS Onboarding Checklist | proportion | 12% | +2 pp | ~3,500 |
+| Marketplace Fee Reduction | mean | $45 GMV | +$5 | ~5,000 |
+
+Each experiment has a realistic hypothesis, three metric types (primary,
+secondary, guardrail), and a `daily_traffic_estimate` large enough to reach
+significance within a few weeks of simulated runtime.
+
+**Proof it works:** The power calculator shows achievable sample sizes for all
+three. The `analyze` endpoint returns significant results with real lift values.
+
+**What I learned:** Seed data is the first thing a new developer or demo
+reviewer sees. Bad parameters make the whole system look broken even when the
+code is correct. Always sanity-check seed parameters against a power calculator
+before committing.
+
+---
+
+## 2026-06-06 — seeds.py created duplicates on every Docker rebuild
+
+**What broke:** Running `docker compose exec backend python /app/backend/migrations/seeds.py`
+multiple times (e.g. after a container rebuild) created duplicate experiments in
+the database. The experiments list page showed 6 or 9 copies of the same three
+experiments.
+
+**Why it broke:** The idempotency check in `main()` counted total rows:
+```python
+count = await session.scalar(select(func.count()).select_from(Experiment))
+if count:
+    return  # skip
+```
+If any experiments existed from previous runs or from the UI, `count > 0`
+triggered an early return and seeds never ran. But if the Postgres volume was
+wiped (e.g. `docker compose down -v`) and seeds were then called twice in quick
+succession, both calls saw `count == 0` and both inserted all three experiments.
+
+**How I fixed it** (`backend/migrations/seeds.py`):
+- Removed the count-based guard entirely.
+- Added `_exists(session, name)` — a per-name check using
+  `select(Experiment).where(Experiment.name == name)`.
+- The `seed()` function now calls `_exists()` for each of the three experiments
+  individually and skips the insert (with a printed message) if that name
+  already exists. Only new experiments are committed.
+
+*Git commit: `bebe66b` — fix: per-name seed idempotency and AI panel live fallback*
+
+**Proof it works:** Running seeds twice produces:
+```
+Checking seed experiments…
+  Skipping 'E-Commerce Checkout Redesign' — already exists.
+  Skipping 'SaaS Onboarding Checklist' — already exists.
+  Skipping 'Marketplace Fee Reduction' — already exists.
+All seed experiments already present — nothing to do.
+```
+
+**What I learned:** Count-based idempotency guards are fragile. The correct
+pattern for seed data is per-row uniqueness checks using a natural key (name,
+slug, or external ID). This is especially important in seeds that might run in
+parallel during deployment or be called by multiple init scripts.
+
+---
+
+## 2026-06-06 — AI Interpretation panel showed stale hardcoded values
+
+**What broke:** The AI Interpretation panel (collapsible section at the bottom
+of the results page) showed "observed lift: +0.0%, p=1.0000" regardless of the
+actual analysis results. It also showed nothing at all until the user clicked
+"Interpret with AI" — the fallback text never appeared automatically.
+
+**Why it broke:** Three compounding issues:
+
+1. The fallback text was a hardcoded constant string that never read from any
+   result object — so it always showed stale/zero values.
+
+2. `isFallback` was only set to `true` when the user had clicked the button AND
+   the SSE stream failed. Before clicking, `isFallback = false`, so
+   `displayText = ''` and the panel body was empty.
+
+3. After `runAnalysis()` completed and `liveResult` was stored in state, the
+   `AIInterpretationPanel` was not remounted — its internal `started` and `text`
+   state persisted from any prior open/close cycle, so the new `liveResult` prop
+   was ignored until a manual page refresh.
+
+**How I fixed it:**
+
+*`frontend/src/components/results/AIInterpretationPanel.jsx`:*
+- Replaced the hardcoded constant with `buildFallbackFromResult(liveResult)`,
+  which reads directly from `liveResult.stats.primary_result` (lift\_pct,
+  p\_value, is\_significant, overall\_recommendation) and formats as:
+  *"The treatment produced a statistically significant effect (observed lift:
+  +25.9%, p<0.001). Recommendation: SHIP."*
+- Changed `displayText = text || fallbackContent` (was `text || (isFallback ? fallbackContent : '')`),
+  so fallback content appears immediately on expand.
+- Removed the gating "Prompt to start" centered block; moved "Interpret with AI"
+  button into the actions row that's always visible when not streaming.
+- `isFallback` badge ("Auto-generated · AI unavailable") still only shows when
+  SSE was attempted and failed — not on the initial expand.
+
+*`frontend/src/pages/ExperimentResults.jsx`:*
+- Changed `<AIInterpretationPanel result={result} …/>` to
+  `<AIInterpretationPanel key={liveResult?.result_id ?? 'static'} result={liveResult} …/>`.
+  The `key` prop forces a full remount when `liveResult` changes, clearing
+  stale internal state. Passing raw `liveResult` (not the derived `result`)
+  gives the fallback builder access to the original API response shape.
+
+*Git commits: `a2e3358`, `bebe66b`, `8a4b0f1`*
+
+**Proof it works:** Open the AI Interpretation panel immediately after "Run
+Analysis" completes: the actual lift%, p-value, and SHIP/DO NOT SHIP label
+appear without any click required.
+
+**What I learned:** React component state does not reset when props change —
+only when the component is unmounted and remounted. The `key` prop is the
+correct tool to force a remount when you need a child to start fresh with new
+data. Using `key={someId}` that changes when the data changes is a clean,
+idiomatic pattern.
+
+---
+
+## 2026-06-06 — Proportion experiments showed raw decimals (0.05 instead of 5.00%)
+
+**What broke:** After running "Run Analysis" on a proportion experiment (e.g.
+E-Commerce Checkout Redesign with a 5% baseline), the stat cards showed:
+- Control Rate: `0.05` (should be `5.00%`)
+- Treatment Rate: `0.06` (should be `6.00%`)
+- Confidence Interval: `[+0.01, +0.02]` (should be `[+0.7%, +1.9%]`)
+
+Mean experiments were unaffected — their raw values were correct.
+
+**Why it broke:** The formatting logic in `buildResultFromLive()` and
+`buildResult()` checked `primary.test_type` to decide whether to multiply
+rates by 100 and append `%`. The variable was named `testType` and used as
+`expType` in the result object, which was then passed to `MetricsRow` as the
+`expType` prop.
+
+The problem: `primary.test_type` from the stats engine result is the *method
+name* (e.g. `"z_test"`) not the *experiment type* (`"proportion"`). Since
+`"z_test" !== "proportion"`, `isProportion` was always `false`, and all
+proportion formatting was skipped.
+
+**How I fixed it** (`frontend/src/pages/ExperimentResults.jsx`):
+Both `buildResultFromLive` and `buildResult` now derive the `expType` used for
+formatting decisions from `experiment.experiment_type` — the field stored on
+the experiment record, which is always `"proportion"` or `"mean"`:
+```javascript
+const expType = experiment?.experiment_type ?? 'proportion'  // for formatting
+const isProportion = expType === 'proportion'
+// primary.test_type kept only for chart subtitle
+```
+
+*Git commit: `256b82f` — fix: proportion formatting, CI scaling, and recommendation labels*
+
+**Proof it works:** E-Commerce stat cards now show `5.00%` / `6.30%` with CI
+`[+0.7%, +1.9%]`. Marketplace (mean) still shows raw `$45.00` / `$50.11`.
+
+**What I learned:** When a backend returns two fields that both look like "the
+type" — one for the experiment category (`experiment_type: "proportion"`) and
+one for the statistical method (`test_type: "z_test"`) — make sure the
+frontend uses the right one for each purpose. Experiment *category* drives
+display formatting; statistical *method* drives chart labels. Conflating them
+is a silent bug that only surfaces on a specific experiment type.
+
+---
+
+## 2026-06-06 — Recommendation label showed "STOP_WIN" instead of "SHIP"
+
+**What broke:** After running analysis, the AI Interpretation fallback text and
+any other recommendation display showed internal backend enum codes like
+`STOP_WIN`, `STOP_LOSE`, `RUN`, `DO_NOT_SHIP` — not human-readable labels.
+
+**Why it broke:** The backend's stats engine returns `overall_recommendation`
+using its internal decision enum names. The frontend stored and displayed these
+codes as-is with no mapping layer.
+
+**How I fixed it:**
+
+*`frontend/src/pages/ExperimentResults.jsx`:*
+Added `mapRecommendation()` at the top of the file:
+```javascript
+const REC_LABELS = {
+  STOP_WIN:    'SHIP',
+  STOP_LOSE:   'DO NOT SHIP',
+  DO_NOT_SHIP: 'DO NOT SHIP',
+  RUN:         'CONTINUE RUNNING',
+}
+function mapRecommendation(code) {
+  if (!code) return null
+  return REC_LABELS[code] ?? code  // unknown codes pass through unchanged
+}
+```
+Applied in both `buildResultFromLive` and `buildResult`:
+```javascript
+recommendation: mapRecommendation(stats.overall_recommendation),
+```
+
+*`frontend/src/components/results/AIInterpretationPanel.jsx`:*
+The fallback builder reads from `liveResult` directly (bypassing the derived
+`result`), so it also needed the mapping applied inline when extracting
+`overall_recommendation`.
+
+*Git commit: `256b82f` — fix: proportion formatting, CI scaling, and recommendation labels*
+
+**Proof it works:** AI Interpretation fallback now reads "Recommendation: SHIP."
+or "Recommendation: DO NOT SHIP." depending on outcome.
+
+**What I learned:** Internal enum/code names should never leak into the UI.
+The right pattern is a mapping constant defined once at the boundary between
+API and UI — not spread across templates or components. If the backend adds a
+new code, there is exactly one place to update. Codes that are not in the map
+pass through unchanged (the `?? code` fallback), which surfaces unknown values
+clearly during development instead of silently showing nothing.
+
+---
+
 *Last updated: 2026-06-06*
