@@ -11,18 +11,20 @@ as strings but has different __globals__, preventing FastAPI from resolving
 Pydantic model types and causing body params to be treated as query params.
 """
 
+import io
 import logging
 from uuid import UUID
 
 import numpy as np
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+import pandas as pd
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_request_id, limiter
 from app.models.experiment import ExperimentResult
-from app.repositories import experiment_repo, result_repo
+from app.repositories import experiment_repo, result_repo, subject_repo
 from app.schemas.ml import (
     ExperimentCreate,
     ExperimentEnvelope,
@@ -33,6 +35,8 @@ from app.schemas.ml import (
     MLAnalysisRequest,
     MLAnalysisResultData,
     StoredResultSummary,
+    SubjectUploadEnvelope,
+    SubjectUploadResponse,
 )
 from app.schemas.stats import AnalysisData, analysis_to_response
 from app.services import analysis_service
@@ -361,5 +365,109 @@ async def analyze_experiment_route(
             result_id=ml_result.result_id,
             stats=stats_envelope.data,
             ml=ml_result,
+        )
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/experiments/{id}/upload-data — upload subject-level CSV
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{experiment_id}/upload-data",
+    response_model=SubjectUploadEnvelope,
+    status_code=200,
+    summary="Upload subject-level CSV data for an experiment",
+)
+@limiter.limit("10/minute")
+async def upload_subject_data(
+    request: Request,
+    response: Response,
+    experiment_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+) -> SubjectUploadEnvelope:
+    """Parse a CSV upload and persist one row per subject into experiment_subjects."""
+    req_id = get_request_id(request)
+    logger.info("upload_subject_data req=%s id=%s", req_id, experiment_id)
+
+    # ── 1. Read bytes ────────────────────────────────────────────────────────
+    content = await file.read()
+
+    # ── 2. Parse CSV ─────────────────────────────────────────────────────────
+    try:
+        df = pd.read_csv(io.BytesIO(content))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not parse CSV: {exc}") from exc
+
+    # ── 3. Validate required columns ─────────────────────────────────────────
+    required = {"subject_id", "variant", "outcome"}
+    missing = required - set(df.columns)
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Missing required columns: {sorted(missing)}",
+        )
+
+    # ── 4. Validate not empty ────────────────────────────────────────────────
+    if df.empty:
+        raise HTTPException(status_code=422, detail="CSV contains no data rows.")
+
+    # ── 5. Validate row limit ────────────────────────────────────────────────
+    if len(df) > 2_000_000:
+        raise HTTPException(status_code=422, detail="CSV exceeds 2,000,000 row limit.")
+
+    # ── 6. Check experiment exists ───────────────────────────────────────────
+    exp = await experiment_repo.get_experiment(db, experiment_id)
+    if exp is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Experiment {experiment_id} not found.",
+        )
+
+    warnings: list[str] = []
+    rows_rejected = 0
+
+    # ── 7. Filter invalid variant rows ───────────────────────────────────────
+    df["variant"] = pd.to_numeric(df["variant"], errors="coerce")
+    bad_variant = df["variant"].isna() | ~df["variant"].isin([0, 1])
+    n_bad_variant = int(bad_variant.sum())
+    if n_bad_variant:
+        warnings.append(f"{n_bad_variant} rows rejected: variant must be 0 or 1")
+        rows_rejected += n_bad_variant
+        df = df[~bad_variant]
+
+    # ── 8. Coerce outcome to float ───────────────────────────────────────────
+    df["outcome"] = pd.to_numeric(df["outcome"], errors="coerce")
+    bad_outcome = df["outcome"].isna()
+    n_bad_outcome = int(bad_outcome.sum())
+    if n_bad_outcome:
+        warnings.append(f"{n_bad_outcome} rows rejected: outcome could not be parsed as a number")
+        rows_rejected += n_bad_outcome
+        df = df[~bad_outcome]
+
+    # ── 9. Build rows for bulk insert ────────────────────────────────────────
+    extra_cols = [c for c in df.columns if c not in {"subject_id", "variant", "outcome"}]
+    rows = []
+    for record in df.to_dict(orient="records"):
+        cov = {c: record[c] for c in extra_cols} if extra_cols else None
+        rows.append({
+            "subject_id": str(record["subject_id"]),
+            "variant": int(record["variant"]),
+            "outcome": float(record["outcome"]),
+            "covariates": cov,
+        })
+
+    # ── 10. Bulk insert ──────────────────────────────────────────────────────
+    inserted = await subject_repo.bulk_insert_subjects(db, experiment_id, rows)
+
+    # ── 11. Return envelope ──────────────────────────────────────────────────
+    return SubjectUploadEnvelope(
+        data=SubjectUploadResponse(
+            rows_accepted=inserted,
+            rows_rejected=rows_rejected,
+            experiment_id=experiment_id,
+            warnings=warnings,
         )
     )

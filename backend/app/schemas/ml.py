@@ -371,3 +371,19 @@ class ExperimentListEnvelope(BaseModel):
 
     data: list[ExperimentResponse]
     meta: ExperimentListMeta
+
+
+class SubjectUploadResponse(BaseModel):
+    """Payload for a successful CSV upload response."""
+
+    rows_accepted: int
+    rows_rejected: int
+    experiment_id: UUID
+    warnings: list[str] = Field(default_factory=list)
+
+
+class SubjectUploadEnvelope(BaseModel):
+    """Envelope wrapping SubjectUploadResponse."""
+
+    data: SubjectUploadResponse
+    meta: MetaEmpty = Field(default_factory=MetaEmpty)
