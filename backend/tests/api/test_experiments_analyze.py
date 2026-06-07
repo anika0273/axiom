@@ -137,6 +137,10 @@ class TestAnalyzeExperimentHappyPath:
                 "app.repositories.experiment_repo.get_metrics",
                 new=AsyncMock(return_value=[metric]),
             ),
+            patch(
+                "app.repositories.subject_repo.has_subject_data",
+                new=AsyncMock(return_value=False),
+            ),
         ):
             return client.post(f"/api/v1/experiments/{_EXP_ID}/analyze")
 

@@ -59,6 +59,7 @@ class ExperimentAnalyzeData(BaseModel):
     result_id: UUID | None = None
     stats: AnalysisData
     ml: MLAnalysisResultData
+    data_source: str = "synthetic"  # "real" | "synthetic"
 
 
 class ExperimentAnalyzeResponse(BaseModel):
@@ -279,59 +280,117 @@ async def analyze_experiment_route(
             ),
         )
 
-    # ── 3. Build representative data from experiment config ──────────────────
+    # ── 3. Build data: real subjects if uploaded, else synthetic ─────────────
     exp_type = (
         exp.experiment_type.value
         if hasattr(exp.experiment_type, "value")
         else str(exp.experiment_type)
     )
-    # 5 000+ subjects per group so integer-rounding can't flatten a real effect
-    # to zero and the stats pipeline has adequate power.
-    n = max(exp.daily_traffic_estimate or 5000, 5000)
-    rng = np.random.default_rng(int(experiment_id) % 2**32)
 
-    if exp_type == "proportion":
-        ctrl_p = float(np.clip(exp.baseline_metric, 0.001, 0.999))
-        # Absolute-lift interpretation: treatment_rate = baseline + mde
-        trt_p = float(np.clip(ctrl_p + float(exp.mde), ctrl_p + 1e-6, 0.999))
-        ctrl_arr = rng.binomial(1, ctrl_p, size=n).astype(float)
-        trt_arr = rng.binomial(1, trt_p, size=n).astype(float)
-        stats_data = ExperimentData(
-            control_n=n,
-            treatment_n=n,
-            control_success=int(ctrl_arr.sum()),
-            treatment_success=int(trt_arr.sum()),
-        )
+    if await subject_repo.has_subject_data(db, experiment_id):
+        data_source = "real"
+        subjects = await subject_repo.get_subjects_for_experiment(db, experiment_id)
+        ctrl_rows = [s for s in subjects if s.variant == 0]
+        trt_rows = [s for s in subjects if s.variant == 1]
+        ctrl_outcomes = [s.outcome for s in ctrl_rows]
+        trt_outcomes = [s.outcome for s in trt_rows]
+
+        if exp_type == "proportion":
+            stats_data = ExperimentData(
+                control_n=len(ctrl_outcomes),
+                treatment_n=len(trt_outcomes),
+                control_success=int(sum(ctrl_outcomes)),
+                treatment_success=int(sum(trt_outcomes)),
+            )
+        else:
+            stats_data = ExperimentData(
+                control_n=len(ctrl_outcomes),
+                treatment_n=len(trt_outcomes),
+                control_success=ctrl_outcomes,
+                treatment_success=trt_outcomes,
+            )
+
+        # Subsample symmetrically so ML modules see both groups
+        n_half = min(len(ctrl_rows), len(trt_rows), 500)
+        sample_ctrl = ctrl_rows[:n_half]
+        sample_trt = trt_rows[:n_half]
+        ml_ctrl = [s.outcome for s in sample_ctrl]
+        ml_trt = [s.outcome for s in sample_trt]
+        sample = sample_ctrl + sample_trt
+
+        # Use uploaded covariates when available; synthesise otherwise
+        has_covariates = any(s.covariates for s in sample)
+        if has_covariates:
+            cov_keys = sorted({k for s in sample if s.covariates for k in s.covariates})
+            user_features: list[dict[str, float]] = []
+            for s in sample:
+                row: dict[str, float] = {}
+                for k in cov_keys:
+                    try:
+                        row[k] = float((s.covariates or {}).get(k, 0.0))
+                    except (TypeError, ValueError):
+                        row[k] = 0.0
+                user_features.append(row)
+        else:
+            rng = np.random.default_rng(int(experiment_id) % 2**32)
+            n_feat = len(sample)
+            feat_device = rng.integers(0, 3, size=n_feat).astype(float)
+            feat_tenure = rng.exponential(90.0, size=n_feat)
+            feat_company = rng.gamma(2.0, 2.0, size=n_feat)
+            user_features = [
+                {
+                    "device_type": float(feat_device[i]),
+                    "user_tenure_days": float(feat_tenure[i]),
+                    "company_size_log": float(feat_company[i]),
+                }
+                for i in range(n_feat)
+            ]
     else:
-        mu = float(exp.baseline_metric)
-        sigma = max(abs(mu) * 0.3, 0.01)
-        # Absolute-lift interpretation: treatment_mean = baseline + mde
-        ctrl_arr = rng.normal(mu, sigma, size=n)
-        trt_arr = rng.normal(mu + float(exp.mde), sigma, size=n)
-        stats_data = ExperimentData(
-            control_n=n,
-            treatment_n=n,
-            control_success=ctrl_arr.tolist(),
-            treatment_success=trt_arr.tolist(),
-        )
+        data_source = "synthetic"
+        # 5 000+ subjects per group so integer-rounding can't flatten a real effect
+        n = max(exp.daily_traffic_estimate or 5000, 5000)
+        rng = np.random.default_rng(int(experiment_id) % 2**32)
 
-    # ML pipeline: subsample for performance; synthesise feature columns so
-    # HTE and segment analysis activate instead of being skipped.
-    n_ml = min(n, 1000)
-    ml_ctrl = ctrl_arr[:n_ml].tolist()
-    ml_trt = trt_arr[:n_ml].tolist()
-    n_feat = 2 * n_ml
-    feat_device = rng.integers(0, 3, size=n_feat).astype(float)
-    feat_tenure = rng.exponential(90.0, size=n_feat)
-    feat_company = rng.gamma(2.0, 2.0, size=n_feat)
-    user_features = [
-        {
-            "device_type": float(feat_device[i]),
-            "user_tenure_days": float(feat_tenure[i]),
-            "company_size_log": float(feat_company[i]),
-        }
-        for i in range(n_feat)
-    ]
+        if exp_type == "proportion":
+            ctrl_p = float(np.clip(exp.baseline_metric, 0.001, 0.999))
+            # Absolute-lift interpretation: treatment_rate = baseline + mde
+            trt_p = float(np.clip(ctrl_p + float(exp.mde), ctrl_p + 1e-6, 0.999))
+            ctrl_arr = rng.binomial(1, ctrl_p, size=n).astype(float)
+            trt_arr = rng.binomial(1, trt_p, size=n).astype(float)
+            stats_data = ExperimentData(
+                control_n=n,
+                treatment_n=n,
+                control_success=int(ctrl_arr.sum()),
+                treatment_success=int(trt_arr.sum()),
+            )
+        else:
+            mu = float(exp.baseline_metric)
+            sigma = max(abs(mu) * 0.3, 0.01)
+            # Absolute-lift interpretation: treatment_mean = baseline + mde
+            ctrl_arr = rng.normal(mu, sigma, size=n)
+            trt_arr = rng.normal(mu + float(exp.mde), sigma, size=n)
+            stats_data = ExperimentData(
+                control_n=n,
+                treatment_n=n,
+                control_success=ctrl_arr.tolist(),
+                treatment_success=trt_arr.tolist(),
+            )
+
+        n_ml = min(n, 1000)
+        ml_ctrl = ctrl_arr[:n_ml].tolist()
+        ml_trt = trt_arr[:n_ml].tolist()
+        n_feat = 2 * n_ml
+        feat_device = rng.integers(0, 3, size=n_feat).astype(float)
+        feat_tenure = rng.exponential(90.0, size=n_feat)
+        feat_company = rng.gamma(2.0, 2.0, size=n_feat)
+        user_features = [
+            {
+                "device_type": float(feat_device[i]),
+                "user_tenure_days": float(feat_tenure[i]),
+                "company_size_log": float(feat_company[i]),
+            }
+            for i in range(n_feat)
+        ]
 
     # ── 4. Run stats pipeline ────────────────────────────────────────────────
     stats_config = ExperimentConfig(
@@ -365,6 +424,7 @@ async def analyze_experiment_route(
             result_id=ml_result.result_id,
             stats=stats_envelope.data,
             ml=ml_result,
+            data_source=data_source,
         )
     )
 
