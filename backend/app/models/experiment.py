@@ -122,6 +122,9 @@ class Experiment(Base):
     ai_interactions: Mapped[list[AIInteraction]] = relationship(
         "AIInteraction", back_populates="experiment", cascade="all, delete-orphan"
     )
+    subjects: Mapped[list[ExperimentSubject]] = relationship(
+        "ExperimentSubject", back_populates="experiment", cascade="all, delete-orphan"
+    )
 
 
 class ExperimentResult(Base):
@@ -230,4 +233,42 @@ class AIInteraction(Base):
 
     experiment: Mapped[Experiment | None] = relationship(
         "Experiment", back_populates="ai_interactions"
+    )
+
+
+class ExperimentSubject(Base):
+    """One subject's outcome record uploaded via CSV for a given experiment."""
+
+    __tablename__ = "experiment_subjects"
+    __table_args__ = (
+        Index("ix_experiment_subjects_experiment_id", "experiment_id"),
+        Index(
+            "ix_experiment_subjects_experiment_variant",
+            "experiment_id",
+            "variant",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    experiment_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    subject_id: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    variant: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    outcome: Mapped[float] = mapped_column(sa.Float, nullable=False)
+    covariates: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+    uploaded_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    experiment: Mapped[Experiment] = relationship(
+        "Experiment", back_populates="subjects"
     )
