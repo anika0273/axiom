@@ -238,6 +238,38 @@ class ValidateResponse(BaseModel):
 # ── Unified ML analysis schemas ────────────────────────────────────────────────
 
 
+class HTEResultData(BaseModel):
+    """Serialized HTE model output for API responses."""
+
+    ate: float
+    stability_score: float
+    top_interactions: list[str]
+    business_recommendation: str
+    ite_point: list[float] = Field(default_factory=list)
+
+
+class SegmentProfileData(BaseModel):
+    """One segment's profile for API responses."""
+
+    id: int
+    size_pct: float
+    lift: float
+    description: str
+    significant: bool
+    low_confidence: bool
+
+
+class SegmentResultData(BaseModel):
+    """Serialized segment analysis output for API responses."""
+
+    optimal_k: int
+    silhouette_score: float
+    segments: list[SegmentProfileData]
+    responsive_segments: list[int]
+    overall_recommendation: str
+    low_confidence: bool
+
+
 class MLAnalysisRequest(BaseModel):
     """Inputs for POST /api/v1/ml/analyze."""
 
@@ -284,6 +316,8 @@ class MLAnalysisResultData(BaseModel):
     recommendation: str
     experiment_id: UUID | None = None
     result_id: UUID | None = None
+    hte: HTEResultData | None = None
+    segments: SegmentResultData | None = None
 
 
 class MLAnalysisResponse(BaseModel):

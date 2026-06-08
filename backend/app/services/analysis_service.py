@@ -11,9 +11,12 @@ from app.ml.engine import MLExperimentInput, run_ml_analysis
 from app.repositories import result_repo
 from app.schemas.ml import (
     DailyMetricRecord,
+    HTEResultData,
     MLAnalysisRequest,
     MLAnalysisResultData,
     ModuleStatusOut,
+    SegmentProfileData,
+    SegmentResultData,
 )
 
 
@@ -32,6 +35,39 @@ def _build_result_data(
     Returns:
         MLAnalysisResultData ready for the API response envelope.
     """
+    hte_data = None
+    if ml_result.hte_result is not None:
+        hte = ml_result.hte_result
+        hte_data = HTEResultData(
+            ate=hte.ate,
+            stability_score=hte.stability_score,
+            top_interactions=hte.top_interactions or [],
+            business_recommendation=hte.business_recommendation or "",
+            ite_point=hte.ite_point.tolist()[:500] if hte.ite_point is not None else [],
+        )
+
+    segments_data = None
+    if ml_result.segment_result is not None:
+        seg = ml_result.segment_result
+        segments_data = SegmentResultData(
+            optimal_k=seg.optimal_k,
+            silhouette_score=seg.silhouette_score,
+            segments=[
+                SegmentProfileData(
+                    id=s.id,
+                    size_pct=s.size_pct,
+                    lift=s.lift,
+                    description=s.description,
+                    significant=s.significant,
+                    low_confidence=s.low_confidence,
+                )
+                for s in seg.segments
+            ],
+            responsive_segments=seg.responsive_segments or [],
+            overall_recommendation=seg.overall_recommendation or "",
+            low_confidence=seg.low_confidence,
+        )
+
     return MLAnalysisResultData(
         overall_verdict=ml_result.overall_verdict,
         key_insights=ml_result.key_insights,
@@ -48,6 +84,8 @@ def _build_result_data(
         recommendation=ml_result.recommendation,
         experiment_id=experiment_id,
         result_id=stored_id,
+        hte=hte_data,
+        segments=segments_data,
     )
 
 

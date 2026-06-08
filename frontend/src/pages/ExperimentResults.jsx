@@ -94,9 +94,9 @@ function buildResultFromLive(liveData, experiment) {
     overallVerdict,
     canTrust,
     anomaly: null,
-    segments: null,
+    segments: liveData.ml?.segments ?? null,
     novelty: null,
-    hte: null,
+    hte: liveData.ml?.hte ?? null,
     keyInsights: ml?.key_insights ?? [],
     metrics: [
       {
