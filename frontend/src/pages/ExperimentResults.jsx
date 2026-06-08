@@ -11,6 +11,7 @@ import { SAMPLE_DATA } from '../data/sampleExperiments'
 
 import ExperimentContext from '../components/results/ExperimentContext'
 import AnalysisNarrative from '../components/results/AnalysisNarrative'
+import UploadDataPanel from '../components/results/UploadDataPanel'
 import VerdictBanner from '../components/results/VerdictBanner'
 import MetricsRow from '../components/results/MetricsRow'
 import AnomalyFlags from '../components/results/AnomalyFlags'
@@ -391,6 +392,14 @@ export default function ExperimentResults() {
             controlCount={null}
             treatmentCount={null}
           />
+          <UploadDataPanel
+            experimentId={id}
+            experiment={experiment}
+            onUploadComplete={(newResult) => {
+              setLiveResult(newResult)
+              setTimeout(refetch, 1000)
+            }}
+          />
           <Card className="p-8 text-center">
             <p
               className="font-display text-lg font-bold mb-2"
@@ -429,6 +438,18 @@ export default function ExperimentResults() {
             controlCount={null}
             treatmentCount={null}
           />
+
+          {/* Upload panel — shown only when data is synthetic */}
+          {(liveResult?.data_source ?? 'synthetic') === 'synthetic' && (
+            <UploadDataPanel
+              experimentId={id}
+              experiment={experiment}
+              onUploadComplete={(newResult) => {
+                setLiveResult(newResult)
+                setTimeout(refetch, 1000)
+              }}
+            />
+          )}
 
           {/* Experiment name above banner */}
           <div className="mb-4">
