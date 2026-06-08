@@ -81,7 +81,7 @@ export default function ExperimentContext({ experiment, dataSource }) {
   const section1Accent = isReal ? 'var(--color-accent-blue)' : 'var(--color-accent-amber)'
 
   // ── Section 1: Dataset ────────────────────────────────────────────────────
-  let datasetParagraph
+  let datasetParagraph = ''
   if (isReal) {
     const { total, control, treatment } = counts
     if (total != null && control != null && treatment != null) {
@@ -91,9 +91,134 @@ export default function ExperimentContext({ experiment, dataSource }) {
     } else {
       datasetParagraph = 'This analysis uses real uploaded subject-level data stored in Axiom.'
     }
-  } else {
-    datasetParagraph =
-      "No real subject data has been uploaded for this experiment yet. The analysis below is a simulation — generated from the experiment’s configured baseline metric and minimum detectable effect. Upload a CSV to run this analysis on real data."
+  }
+
+  // Synthetic section — only built when dataSource !== 'real'
+  let syntheticContent = null
+  if (!isReal) {
+    const baseline = experiment?.baseline_metric
+    const mdeVal = experiment?.mde
+    const trafficN = experiment?.daily_traffic_estimate
+
+    // P1 — what the simulation is
+    let p1
+    if (expType === 'proportion') {
+      const baselineStr =
+        baseline != null ? `${(baseline * 100).toFixed(1)}%` : 'the configured baseline'
+      const mdeStr2 = mdeVal != null ? fmtMde(mdeVal, expType) : 'the target lift'
+      const trafficStr = trafficN != null ? trafficN.toLocaleString() : 'an estimated number of'
+      p1 = `No real data has been uploaded yet. The numbers below are simulated from this experiment's configuration — a baseline conversion rate of ${baselineStr} with a target lift of ${mdeStr2}. Axiom generates ${trafficStr} users per group using these parameters to show you what results would look like if the hypothesized effect is real. This is a preview, not a measurement.`
+    } else {
+      const baselineStr =
+        baseline != null
+          ? baseline % 1 === 0 ? baseline.toFixed(0) : baseline.toFixed(2)
+          : 'the configured baseline'
+      const mdeStr2 = mdeVal != null ? fmtMde(mdeVal, expType) : 'the target lift'
+      const trafficStr = trafficN != null ? trafficN.toLocaleString() : 'an estimated number of'
+      p1 = `No real data has been uploaded yet. The numbers below are simulated from this experiment's configuration — a baseline average of ${baselineStr} with a target lift of ${mdeStr2}. Axiom generates ${trafficStr} users per group drawn from a normal distribution around these values. This is a preview, not a measurement.`
+    }
+
+    // P2 — what real data looks like
+    const p2 =
+      expType === 'proportion'
+        ? 'To run this on real data, upload a CSV with one row per user. Each row represents one subject in the experiment.'
+        : 'To run this on real data, upload a CSV with one row per subject. Each row represents one unit in the experiment (e.g. one seller, one session, one user).'
+
+    // Required columns
+    const outcomeDesc =
+      expType === 'proportion'
+        ? '1 if converted, 0 if not'
+        : 'the numeric value (e.g. revenue in dollars, GMV per seller)'
+    const requiredCols = [
+      { name: 'subject_id', desc: 'a unique identifier for each user or unit (e.g. user_123, session_456)' },
+      { name: 'variant', desc: '0 for control group, 1 for treatment group' },
+      { name: 'outcome', desc: outcomeDesc },
+    ]
+
+    // Optional columns — experiment-specific
+    const expName = (experiment?.name ?? '').toLowerCase()
+    let optionalCols = null
+    let optionalIsGeneric = false
+    if (/checkout|e-commerce|ecommerce/.test(expName)) {
+      optionalCols = [
+        { name: 'device_type', desc: '0=mobile, 1=tablet, 2=desktop' },
+        { name: 'user_tenure_days', desc: 'how long the user has been a customer' },
+        { name: 'cart_value', desc: 'value of items in cart before checkout' },
+        { name: 'is_returning_user', desc: '1=returning, 0=new' },
+      ]
+    } else if (/saas|onboarding/.test(expName)) {
+      optionalCols = [
+        { name: 'company_size', desc: 'number of employees' },
+        { name: 'plan_type', desc: '0=free, 1=trial, 2=paid' },
+        { name: 'days_since_signup', desc: '' },
+        { name: 'feature_usage_count', desc: '' },
+      ]
+    } else if (/marketplace|seller|fee/.test(expName)) {
+      optionalCols = [
+        { name: 'seller_tenure_days', desc: '' },
+        { name: 'avg_listing_price', desc: '' },
+        { name: 'listings_count', desc: '' },
+        { name: 'category_id', desc: '' },
+      ]
+    } else {
+      optionalIsGeneric = true
+    }
+
+    const colRowStyle = { display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 4 }
+    const colNameStyle = { fontFamily: 'DM Mono, monospace', fontSize: 12, color: 'var(--color-text-data)', flexShrink: 0 }
+    const colDescStyle = { fontSize: 12, color: 'var(--color-text-secondary)' }
+    const sectionLabelStyle = {
+      fontSize: 11,
+      textTransform: 'uppercase',
+      letterSpacing: '0.1em',
+      color: 'var(--color-text-muted)',
+      margin: '0 0 8px 0',
+    }
+
+    syntheticContent = (
+      <div>
+        <p style={{ margin: 0 }}>{p1}</p>
+        <p style={{ margin: '10px 0 0' }}>{p2}</p>
+        <div
+          style={{
+            background: 'var(--color-bg-elevated)',
+            borderRadius: 6,
+            padding: '12px 16px',
+            marginTop: 12,
+          }}
+        >
+          <p style={sectionLabelStyle}>Required columns</p>
+          {requiredCols.map((col) => (
+            <div key={col.name} style={colRowStyle}>
+              <span style={colNameStyle}>{col.name}</span>
+              <span style={colDescStyle}>— {col.desc}</span>
+            </div>
+          ))}
+
+          <div style={{ borderTop: '1px solid var(--color-border-subtle)', margin: '10px 0' }} />
+
+          <p style={sectionLabelStyle}>Optional columns</p>
+          {optionalIsGeneric ? (
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: 0 }}>
+              Any numeric columns beyond the required three will be used as features for ML
+              analysis (heterogeneous treatment effects and segment discovery).
+            </p>
+          ) : (
+            optionalCols?.map((col) => (
+              <div key={col.name} style={colRowStyle}>
+                <span style={colNameStyle}>{col.name}</span>
+                {col.desc && <span style={colDescStyle}>— {col.desc}</span>}
+              </div>
+            ))
+          )}
+
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '10px 0 0', fontStyle: 'italic' }}>
+            The more optional features you provide, the richer the segment and treatment effect
+            analysis.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   // ── Section 2: Hypothesis ─────────────────────────────────────────────────
@@ -181,13 +306,19 @@ export default function ExperimentContext({ experiment, dataSource }) {
       {/* Collapsible sections */}
       <div style={{ display: collapsed ? 'none' : 'block' }}>
         <Section label="The Dataset" accentColor={section1Accent} isFirst>
-          <p style={{ margin: 0 }}>{datasetParagraph}</p>
-          {isReal && isCriteo(experiment?.name) && (
-            <p style={{ margin: '10px 0 0' }}>{CRITEO_BLURB}</p>
+          {isReal ? (
+            <>
+              <p style={{ margin: 0 }}>{datasetParagraph}</p>
+              {isCriteo(experiment?.name) && (
+                <p style={{ margin: '10px 0 0' }}>{CRITEO_BLURB}</p>
+              )}
+            </>
+          ) : (
+            syntheticContent
           )}
         </Section>
 
-        <Section label="What We’re Testing" accentColor="var(--color-accent-blue)">
+        <Section label="What We're Testing" accentColor="var(--color-accent-blue)">
           {hypothesisText ? (
             <p style={{ margin: 0 }}>
               <span style={{ color: 'var(--color-text-muted)', marginRight: 4 }}>
@@ -200,7 +331,7 @@ export default function ExperimentContext({ experiment, dataSource }) {
           )}
         </Section>
 
-        <Section label="How It’s Set Up" accentColor="var(--color-accent-blue)">
+        <Section label="How It's Set Up" accentColor="var(--color-accent-blue)">
           <p style={{ margin: 0 }}>{setupText}</p>
         </Section>
       </div>
