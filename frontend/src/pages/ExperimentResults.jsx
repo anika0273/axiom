@@ -10,6 +10,7 @@ import { useAPI } from '../hooks/useAPI'
 import { SAMPLE_DATA } from '../data/sampleExperiments'
 
 import ExperimentContext from '../components/results/ExperimentContext'
+import AnalysisNarrative from '../components/results/AnalysisNarrative'
 import VerdictBanner from '../components/results/VerdictBanner'
 import MetricsRow from '../components/results/MetricsRow'
 import AnomalyFlags from '../components/results/AnomalyFlags'
@@ -480,29 +481,8 @@ export default function ExperimentResults() {
             <AnomalyFlags anomaly={result.anomaly} />
           )}
 
-          {/* Key insights (from ML) */}
-          {result.keyInsights?.length > 0 && (
-            <div className="mb-6 space-y-2">
-              {result.keyInsights.map((insight, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2 text-sm px-4 py-3 rounded-lg"
-                  style={{
-                    backgroundColor: 'var(--color-bg-elevated)',
-                    color: 'var(--color-text-secondary)',
-                  }}
-                >
-                  <span
-                    className="font-mono text-xs font-bold mt-0.5 flex-shrink-0"
-                    style={{ color: 'var(--color-text-muted)' }}
-                  >
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  {insight}
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Analysis narrative — five-act story replacing raw key_insights */}
+          <AnalysisNarrative result={result} experiment={experiment} />
 
           {/* SECTION 4: Metric comparison chart */}
           <MetricComparisonChart
