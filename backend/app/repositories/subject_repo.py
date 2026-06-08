@@ -80,3 +80,35 @@ async def has_subject_data(
         .where(ExperimentSubject.experiment_id == experiment_id)
     )
     return (result.scalar() or 0) > 0
+
+
+async def get_subject_counts(
+    db: AsyncSession,
+    experiment_id: UUID,
+) -> dict:
+    """Return subject counts by variant for an experiment.
+
+    Args:
+        db: Active async session.
+        experiment_id: Experiment to count.
+
+    Returns:
+        Dict with total, control, treatment counts.
+    """
+    result = await db.execute(
+        select(
+            ExperimentSubject.variant,
+            func.count().label("count"),
+        )
+        .where(ExperimentSubject.experiment_id == experiment_id)
+        .group_by(ExperimentSubject.variant)
+    )
+    rows = result.all()
+    counts = {row.variant: row.count for row in rows}
+    control = counts.get(0, 0)
+    treatment = counts.get(1, 0)
+    return {
+        "total": control + treatment,
+        "control": control,
+        "treatment": treatment,
+    }

@@ -26,12 +26,12 @@ export default function MetricsRow({
   isSignificant,
   expType,
 }) {
-  const isProportion = !expType || expType === 'proportion'
+  const isProportion = expType === 'proportion'
 
-  const fmtRate = (v) => {
-    if (v == null) return '—'
-    if (isProportion) return `${(v * 100).toFixed(2)}%`
-    return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const fmtRate = (value) => {
+    if (value == null) return '—'
+    if (expType === 'proportion') return `${(value * 100).toFixed(2)}%`
+    return value.toFixed(2)
   }
 
   const sigColor = isSignificant ? 'var(--color-accent-green)' : 'var(--color-text-muted)'

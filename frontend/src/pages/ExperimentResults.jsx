@@ -9,6 +9,7 @@ import Card from '../components/ui/Card'
 import { useAPI } from '../hooks/useAPI'
 import { SAMPLE_DATA } from '../data/sampleExperiments'
 
+import ExperimentContext from '../components/results/ExperimentContext'
 import VerdictBanner from '../components/results/VerdictBanner'
 import MetricsRow from '../components/results/MetricsRow'
 import AnomalyFlags from '../components/results/AnomalyFlags'
@@ -382,6 +383,13 @@ export default function ExperimentResults() {
               </p>
             )}
           </div>
+          <ExperimentContext
+            experiment={experiment}
+            dataSource="synthetic"
+            subjectCount={null}
+            controlCount={null}
+            treatmentCount={null}
+          />
           <Card className="p-8 text-center">
             <p
               className="font-display text-lg font-bold mb-2"
@@ -408,6 +416,19 @@ export default function ExperimentResults() {
       {/* Full results view */}
       {result && (
         <>
+          <ExperimentContext
+            experiment={experiment}
+            dataSource={liveResult?.data_source ?? 'synthetic'}
+            subjectCount={
+              liveResult
+                ? (liveResult.stats?.primary_result?.control_n ?? null) +
+                  (liveResult.stats?.primary_result?.treatment_n ?? null)
+                : null
+            }
+            controlCount={null}
+            treatmentCount={null}
+          />
+
           {/* Experiment name above banner */}
           <div className="mb-4">
             <h1
@@ -487,6 +508,7 @@ export default function ExperimentResults() {
           <MetricComparisonChart
             metrics={result.metrics}
             title={`Primary Metric Comparison · ${result.testType ?? 'z-test'}`}
+            expType={result.expType}
           />
 
           {/* SECTION 5: Sequential testing timeline (conditional) */}

@@ -12,36 +12,38 @@ import {
   Cell,
 } from 'recharts'
 
-const CustomTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div
-      className="rounded-lg border px-3 py-2.5 text-xs shadow-lg"
-      style={{
-        backgroundColor: 'var(--color-bg-elevated)',
-        borderColor: 'var(--color-border-subtle)',
-      }}
-    >
-      <p
-        className="font-medium mb-1.5"
-        style={{ color: 'var(--color-text-primary)' }}
+function makeTooltip(fmtValue) {
+  return function CustomTooltip({ active, payload, label }) {
+    if (!active || !payload?.length) return null
+    return (
+      <div
+        className="rounded-lg border px-3 py-2.5 text-xs shadow-lg"
+        style={{
+          backgroundColor: 'var(--color-bg-elevated)',
+          borderColor: 'var(--color-border-subtle)',
+        }}
       >
-        {label}
-      </p>
-      {payload.map((p) => (
-        <div key={p.name} className="flex items-center gap-2">
-          <span
-            className="inline-block w-2 h-2 rounded-full"
-            style={{ backgroundColor: p.fill }}
-          />
-          <span style={{ color: 'var(--color-text-secondary)' }}>{p.name}:</span>
-          <span className="font-mono font-medium" style={{ color: 'var(--color-text-primary)' }}>
-            {(p.value * 100).toFixed(2)}%
-          </span>
-        </div>
-      ))}
-    </div>
-  )
+        <p
+          className="font-medium mb-1.5"
+          style={{ color: 'var(--color-text-primary)' }}
+        >
+          {label}
+        </p>
+        {payload.map((p) => (
+          <div key={p.name} className="flex items-center gap-2">
+            <span
+              className="inline-block w-2 h-2 rounded-full"
+              style={{ backgroundColor: p.fill }}
+            />
+            <span style={{ color: 'var(--color-text-secondary)' }}>{p.name}:</span>
+            <span className="font-mono font-medium" style={{ color: 'var(--color-text-primary)' }}>
+              {fmtValue(p.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
 }
 
 /**
@@ -59,8 +61,22 @@ const CustomTooltip = ({ active, payload, label }) => {
  * }>} props.metrics
  * @param {string} [props.title]
  */
-const MetricComparisonChart = memo(function MetricComparisonChart({ metrics, title = 'Primary Metric Comparison' }) {
+const MetricComparisonChart = memo(function MetricComparisonChart({ metrics, title = 'Primary Metric Comparison', expType }) {
   if (!metrics?.length) return null
+
+  const isProportion = expType === 'proportion'
+
+  const fmtValue = (v) => {
+    if (v == null) return '—'
+    if (isProportion) return `${(v * 100).toFixed(2)}%`
+    return v.toFixed(2)
+  }
+
+  const axisTickFmt = isProportion
+    ? (v) => `${(v * 100).toFixed(0)}%`
+    : (v) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1))
+
+  const TooltipContent = makeTooltip(fmtValue)
 
   const treatmentColor = (sig) =>
     sig ? 'var(--color-accent-green)' : 'var(--color-accent-blue)'
@@ -101,7 +117,7 @@ const MetricComparisonChart = memo(function MetricComparisonChart({ metrics, tit
               tickLine={false}
             />
             <YAxis
-              tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+              tickFormatter={axisTickFmt}
               tick={{
                 fontSize: 10,
                 fill: 'var(--color-text-muted)',
@@ -111,7 +127,7 @@ const MetricComparisonChart = memo(function MetricComparisonChart({ metrics, tit
               tickLine={false}
               width={44}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+            <Tooltip content={<TooltipContent />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
             <Legend
               wrapperStyle={{
                 fontSize: 11,
@@ -200,8 +216,8 @@ const MetricComparisonChart = memo(function MetricComparisonChart({ metrics, tit
             <span style={{ fontFamily: 'DM Sans', color: 'var(--color-text-primary)' }}>
               {m.name}
             </span>
-            <span>{(m.control * 100).toFixed(2)}%</span>
-            <span>{(m.treatment * 100).toFixed(2)}%</span>
+            <span>{fmtValue(m.control)}</span>
+            <span>{fmtValue(m.treatment)}</span>
             <span
               style={{
                 color:

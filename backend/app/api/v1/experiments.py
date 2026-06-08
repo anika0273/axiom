@@ -52,6 +52,21 @@ router = APIRouter(prefix="/api/v1/experiments", tags=["experiments"])
 # ---------------------------------------------------------------------------
 
 
+class SubjectCountsData(BaseModel):
+    """Subject counts by variant for an experiment."""
+
+    total: int
+    control: int
+    treatment: int
+
+
+class SubjectCountsResponse(BaseModel):
+    """Envelope wrapping SubjectCountsData."""
+
+    data: SubjectCountsData
+    meta: dict = {}
+
+
 class ExperimentAnalyzeData(BaseModel):
     """Combined stats + ML result returned by POST /{id}/analyze."""
 
@@ -427,6 +442,30 @@ async def analyze_experiment_route(
             data_source=data_source,
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/experiments/{id}/subject-counts — counts by variant
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{experiment_id}/subject-counts",
+    response_model=SubjectCountsResponse,
+    summary="Get subject counts by variant for an experiment",
+)
+@limiter.limit("60/minute")
+async def get_subject_counts_route(
+    request: Request,
+    response: Response,
+    experiment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> SubjectCountsResponse:
+    """Return total, control, and treatment subject counts for an experiment."""
+    req_id = get_request_id(request)
+    logger.info("get_subject_counts req=%s id=%s", req_id, experiment_id)
+    counts = await subject_repo.get_subject_counts(db, experiment_id)
+    return SubjectCountsResponse(data=SubjectCountsData(**counts))
 
 
 # ---------------------------------------------------------------------------
