@@ -270,6 +270,19 @@ class SegmentResultData(BaseModel):
     low_confidence: bool
 
 
+class BayesianResultData(BaseModel):
+    """Bayesian analysis result for API responses."""
+
+    prob_treatment_better: float
+    prob_control_better: float
+    expected_lift: float
+    credible_interval_low: float
+    credible_interval_high: float
+    method: str
+    interpretation: str
+    n_samples: int
+
+
 class MLAnalysisRequest(BaseModel):
     """Inputs for POST /api/v1/ml/analyze."""
 

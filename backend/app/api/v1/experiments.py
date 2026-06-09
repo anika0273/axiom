@@ -26,6 +26,8 @@ from app.dependencies import get_db, get_request_id, limiter
 from app.models.experiment import ExperimentResult
 from app.repositories import experiment_repo, result_repo, subject_repo
 from app.schemas.ml import (
+    BayesianResultData,
+    DailyMetricRecord,
     ExperimentCreate,
     ExperimentEnvelope,
     ExperimentListEnvelope,
@@ -38,8 +40,9 @@ from app.schemas.ml import (
     SubjectUploadEnvelope,
     SubjectUploadResponse,
 )
-from app.schemas.stats import AnalysisData, analysis_to_response
+from app.schemas.stats import AnalysisData, SkippedTechnique, TechniquesReport, analysis_to_response
 from app.services import analysis_service
+from app.stats.bayesian import run_bayesian_mean, run_bayesian_proportion
 from app.stats.engine import ExperimentConfig, ExperimentData, analyze_experiment
 
 logger = logging.getLogger(__name__)
@@ -67,6 +70,14 @@ class SubjectCountsResponse(BaseModel):
     meta: dict = {}
 
 
+class DailyMetricsSummary(BaseModel):
+    """Brief summary of the daily time-series data used in this analysis."""
+
+    n_days: int
+    date_from: str | None = None
+    date_to: str | None = None
+
+
 class ExperimentAnalyzeData(BaseModel):
     """Combined stats + ML result returned by POST /{id}/analyze."""
 
@@ -75,6 +86,9 @@ class ExperimentAnalyzeData(BaseModel):
     stats: AnalysisData
     ml: MLAnalysisResultData
     data_source: str = "synthetic"  # "real" | "synthetic"
+    bayesian: BayesianResultData | None = None
+    techniques: TechniquesReport | None = None
+    daily_metrics_summary: DailyMetricsSummary | None = None
 
 
 class ExperimentAnalyzeResponse(BaseModel):
@@ -302,6 +316,11 @@ async def analyze_experiment_route(
         else str(exp.experiment_type)
     )
 
+    daily_df_records: list[DailyMetricRecord] | None = None
+    daily_metrics_summary: DailyMetricsSummary | None = None
+    techniques_ran: list[str] = []
+    techniques_skipped: list[SkippedTechnique] = []
+
     if await subject_repo.has_subject_data(db, experiment_id):
         data_source = "real"
         subjects = await subject_repo.get_subjects_for_experiment(db, experiment_id)
@@ -310,12 +329,38 @@ async def analyze_experiment_route(
         ctrl_outcomes = [s.outcome for s in ctrl_rows]
         trt_outcomes = [s.outcome for s in trt_rows]
 
+        # ── Detect available covariate columns ───────────────────────────────
+        all_cov_keys: set[str] = set()
+        for s in subjects:
+            if s.covariates:
+                all_cov_keys.update(s.covariates.keys())
+
+        has_cuped = "pre_experiment_outcome" in all_cov_keys
+        date_key: str | None = (
+            "date" if "date" in all_cov_keys
+            else ("day" if "day" in all_cov_keys else None)
+        )
+        feature_keys = sorted(
+            k for k in all_cov_keys
+            if k not in {"pre_experiment_outcome", "date", "day"}
+        )
+
+        # ── CUPED covariates (control first, then treatment) ─────────────────
+        cuped_covariates: list[float] | None = None
+        if has_cuped:
+            cuped_covariates = [
+                float((s.covariates or {}).get("pre_experiment_outcome", 0.0))
+                for s in ctrl_rows + trt_rows
+            ]
+
+        # ── Stats data ───────────────────────────────────────────────────────
         if exp_type == "proportion":
             stats_data = ExperimentData(
                 control_n=len(ctrl_outcomes),
                 treatment_n=len(trt_outcomes),
                 control_success=int(sum(ctrl_outcomes)),
                 treatment_success=int(sum(trt_outcomes)),
+                cuped_covariates=cuped_covariates,
             )
         else:
             stats_data = ExperimentData(
@@ -323,9 +368,64 @@ async def analyze_experiment_route(
                 treatment_n=len(trt_outcomes),
                 control_success=ctrl_outcomes,
                 treatment_success=trt_outcomes,
+                cuped_covariates=cuped_covariates,
             )
 
-        # Subsample symmetrically so ML modules see both groups
+        # ── Daily metrics (for sequential / anomaly / novelty) ───────────────
+        n_days = 1
+        if date_key is not None:
+            df_subj = pd.DataFrame([
+                {
+                    "variant": s.variant,
+                    "outcome": s.outcome,
+                    "date": (s.covariates or {}).get(date_key),
+                }
+                for s in subjects
+                if (s.covariates or {}).get(date_key) is not None
+            ])
+            if not df_subj.empty:
+                df_subj["date"] = pd.to_datetime(df_subj["date"], errors="coerce")
+                df_subj = df_subj.dropna(subset=["date"])
+            if not df_subj.empty:
+                daily_agg = (
+                    df_subj.groupby(["date", "variant"])["outcome"]
+                    .agg(["sum", "count"])
+                    .reset_index()
+                )
+                ctrl_daily = (
+                    daily_agg[daily_agg["variant"] == 0]
+                    .set_index("date")[["sum", "count"]]
+                )
+                trt_daily = (
+                    daily_agg[daily_agg["variant"] == 1]
+                    .set_index("date")[["sum", "count"]]
+                )
+                merged = ctrl_daily.join(
+                    trt_daily, how="inner", lsuffix="_ctrl", rsuffix="_trt"
+                ).sort_index()
+                if len(merged) >= 7:
+                    daily_df_records = [
+                        DailyMetricRecord(
+                            date=str(d.date()),
+                            control_metric=(
+                                float(row["sum_ctrl"]) / max(float(row["count_ctrl"]), 1)
+                            ),
+                            treatment_metric=(
+                                float(row["sum_trt"]) / max(float(row["count_trt"]), 1)
+                            ),
+                            n_control=float(row["count_ctrl"]),
+                            n_treatment=float(row["count_trt"]),
+                        )
+                        for d, row in merged.iterrows()
+                    ]
+                    n_days = len(merged)
+                    daily_metrics_summary = DailyMetricsSummary(
+                        n_days=n_days,
+                        date_from=str(merged.index.min().date()),
+                        date_to=str(merged.index.max().date()),
+                    )
+
+        # ── User features for HTE / segments ─────────────────────────────────
         n_half = min(len(ctrl_rows), len(trt_rows), 500)
         sample_ctrl = ctrl_rows[:n_half]
         sample_trt = trt_rows[:n_half]
@@ -333,19 +433,21 @@ async def analyze_experiment_route(
         ml_trt = [s.outcome for s in sample_trt]
         sample = sample_ctrl + sample_trt
 
-        # Use uploaded covariates when available; synthesise otherwise
-        has_covariates = any(s.covariates for s in sample)
-        if has_covariates:
-            cov_keys = sorted({k for s in sample if s.covariates for k in s.covariates})
+        if feature_keys:
             user_features: list[dict[str, float]] = []
             for s in sample:
                 row: dict[str, float] = {}
-                for k in cov_keys:
+                for k in feature_keys:
                     try:
                         row[k] = float((s.covariates or {}).get(k, 0.0))
                     except (TypeError, ValueError):
                         row[k] = 0.0
                 user_features.append(row)
+            techniques_ran.append("HTE (XGBoost)")
+            techniques_ran.append("Segment discovery (K-means)")
+            techniques_ran.append("SHAP feature importance")
+            techniques_ran.append("Jaccard stability scoring")
+            
         else:
             rng = np.random.default_rng(int(experiment_id) % 2**32)
             n_feat = len(sample)
@@ -360,15 +462,40 @@ async def analyze_experiment_route(
                 }
                 for i in range(n_feat)
             ]
+
+        # ── Techniques report ────────────────────────────────────────────────
+        test_label = "z-test" if exp_type == "proportion" else "Welch t-test"
+        techniques_ran.append(test_label)
+
+        if n_days > 1:
+            techniques_ran.append("Sequential (O'Brien-Fleming)")
+        else:
+            techniques_skipped.append(SkippedTechnique(
+                name="Sequential testing",
+                reason="No 'date' column found in uploaded data.",
+                what_it_would_show="Whether the experiment can stop early with confidence.",
+                how_to_enable="Add a 'date' column to your CSV (one date value per row).",
+            ))
+
+        if has_cuped:
+            techniques_ran.append("CUPED variance reduction")
+        else:
+            techniques_skipped.append(SkippedTechnique(
+                name="CUPED",
+                reason="No 'pre_experiment_outcome' column found in uploaded data.",
+                what_it_would_show="Whether variance reduction would strengthen the result.",
+                how_to_enable="Add a 'pre_experiment_outcome' column to your CSV.",
+            ))
+
     else:
         data_source = "synthetic"
+        n_days = 1
         # 5 000+ subjects per group so integer-rounding can't flatten a real effect
         n = max(exp.daily_traffic_estimate or 5000, 5000)
         rng = np.random.default_rng(int(experiment_id) % 2**32)
 
         if exp_type == "proportion":
             ctrl_p = float(np.clip(exp.baseline_metric, 0.001, 0.999))
-            # Absolute-lift interpretation: treatment_rate = baseline + mde
             trt_p = float(np.clip(ctrl_p + float(exp.mde), ctrl_p + 1e-6, 0.999))
             ctrl_arr = rng.binomial(1, ctrl_p, size=n).astype(float)
             trt_arr = rng.binomial(1, trt_p, size=n).astype(float)
@@ -381,7 +508,6 @@ async def analyze_experiment_route(
         else:
             mu = float(exp.baseline_metric)
             sigma = max(abs(mu) * 0.3, 0.01)
-            # Absolute-lift interpretation: treatment_mean = baseline + mde
             ctrl_arr = rng.normal(mu, sigma, size=n)
             trt_arr = rng.normal(mu + float(exp.mde), sigma, size=n)
             stats_data = ExperimentData(
@@ -407,11 +533,30 @@ async def analyze_experiment_route(
             for i in range(n_feat)
         ]
 
+        test_label = "z-test" if exp_type == "proportion" else "Welch t-test"
+        techniques_ran.append(test_label)
+        techniques_skipped.extend([
+            SkippedTechnique(
+                name="Sequential testing",
+                reason="Synthetic data has no daily time series.",
+                what_it_would_show="Whether the experiment can stop early with confidence.",
+                how_to_enable="Upload real data with a 'date' column.",
+            ),
+            SkippedTechnique(
+                name="CUPED",
+                reason="Synthetic data has no pre-experiment baseline.",
+                what_it_would_show="Whether variance reduction would strengthen the result.",
+                how_to_enable="Upload real data with a 'pre_experiment_outcome' column.",
+            ),
+        ])
+
     # ── 4. Run stats pipeline ────────────────────────────────────────────────
     stats_config = ExperimentConfig(
         test_type=exp_type,
         alpha=float(exp.alpha),
         power=float(exp.power),
+        sequential_looks=max(n_days, 1),
+        has_cuped_data=stats_data.cuped_covariates is not None,
     )
     try:
         stats_analysis = analyze_experiment(stats_config, stats_data)
@@ -420,11 +565,45 @@ async def analyze_experiment_route(
 
     stats_envelope = analysis_to_response(stats_analysis)
 
-    # ── 5. Run ML pipeline (stores result) ───────────────────────────────────
+    # ── 5. Run Bayesian analysis ─────────────────────────────────────────────
+    bayesian_result: BayesianResultData | None = None
+    try:
+        bay_rng = np.random.default_rng(int(experiment_id) % 2**32)
+        if exp_type == "proportion":
+            primary = stats_analysis.primary_result
+            bay = run_bayesian_proportion(
+                n_control=stats_data.control_n,
+                success_control=int(stats_data.control_success),
+                n_treatment=stats_data.treatment_n,
+                success_treatment=int(stats_data.treatment_success),
+                rng=bay_rng,
+            )
+        else:
+            bay = run_bayesian_mean(
+                control_values=ml_ctrl,
+                treatment_values=ml_trt,
+                rng=bay_rng,
+            )
+        bayesian_result = BayesianResultData(
+            prob_treatment_better=bay.prob_treatment_better,
+            prob_control_better=bay.prob_control_better,
+            expected_lift=bay.expected_lift,
+            credible_interval_low=bay.credible_interval_low,
+            credible_interval_high=bay.credible_interval_high,
+            method=bay.method,
+            interpretation=bay.interpretation,
+            n_samples=bay.n_samples,
+        )
+        techniques_ran.append("Bayesian")
+    except Exception:
+        logger.exception("Bayesian analysis failed for experiment %s", experiment_id)
+
+    # ── 6. Run ML pipeline (stores result) ───────────────────────────────────
     ml_body = MLAnalysisRequest(
         control_values=ml_ctrl,
         treatment_values=ml_trt,
         user_features=user_features,
+        daily_metrics=daily_df_records,
         experiment_id=experiment_id,
     )
     try:
@@ -432,7 +611,7 @@ async def analyze_experiment_route(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    # ── 6. Return combined response ──────────────────────────────────────────
+    # ── 7. Return combined response ──────────────────────────────────────────
     return ExperimentAnalyzeResponse(
         data=ExperimentAnalyzeData(
             experiment_id=experiment_id,
@@ -440,6 +619,9 @@ async def analyze_experiment_route(
             stats=stats_envelope.data,
             ml=ml_result,
             data_source=data_source,
+            bayesian=bayesian_result,
+            techniques=TechniquesReport(ran=techniques_ran, skipped=techniques_skipped),
+            daily_metrics_summary=daily_metrics_summary,
         )
     )
 

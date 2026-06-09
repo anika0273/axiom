@@ -241,6 +241,22 @@ def _test_result_to_data(result: object) -> TestResultData:  # type: ignore[type
     )
 
 
+class SkippedTechnique(BaseModel):
+    """Describes a statistical technique that was not run and why."""
+
+    name: str
+    reason: str
+    what_it_would_show: str
+    how_to_enable: str
+
+
+class TechniquesReport(BaseModel):
+    """Summary of which statistical / ML techniques ran vs were skipped."""
+
+    ran: list[str]
+    skipped: list[SkippedTechnique]
+
+
 def analysis_to_response(analysis: object) -> AnalyzeResponse:  # type: ignore[type-arg]
     """Convert ExperimentAnalysis (with numpy arrays) to a JSON-safe AnalyzeResponse."""
     ss = analysis.required_sample_size  # type: ignore[attr-defined]
