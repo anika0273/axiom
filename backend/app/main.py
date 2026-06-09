@@ -36,20 +36,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Record startup timestamp and seed sample experiments."""
+    """Record startup timestamp."""
     app.state.start_time = time.time()
-
-    try:
-        from app.data.sample_experiments import seed_sample_experiments
-        from app.db.session import AsyncSessionLocal
-
-        async with AsyncSessionLocal() as session:
-            await seed_sample_experiments(session)
-        logger.info("Sample experiments seeded successfully")
-    except Exception as exc:
-        # DB may not be available in test/CI environments — never block startup.
-        logger.warning("Sample experiment seeding skipped: %s", exc)
-
+    # Sample experiment seeding disabled.
+    # Manage experiments via: docker compose exec backend python -m migrations.seeds
     yield
 
 

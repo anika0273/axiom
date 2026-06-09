@@ -403,7 +403,14 @@ function LiveExperimentsSection() {
         return r.json()
       })
       .then((body) => {
-        setExperiments((body.data ?? []).slice(0, 3))
+        setExperiments(
+  (body.data ?? [])
+    .sort((a, b) =>
+      a.status === 'running' && b.status !== 'running' ? -1 :
+      b.status === 'running' && a.status !== 'running' ? 1 : 0
+    )
+    .slice(0, 3)
+)
         setLoading(false)
       })
       .catch((err) => {
