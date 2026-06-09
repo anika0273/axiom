@@ -599,6 +599,25 @@ async def analyze_experiment_route(
         logger.exception("Bayesian analysis failed for experiment %s", experiment_id)
 
     # ── 6. Run ML pipeline (stores result) ───────────────────────────────────
+    _ML_DISPLAY = {
+        "hte": "HTE (SHAP-ranked heterogeneous treatment effects)",
+        "segments": "Segment discovery (Jaccard-stable k-means)",
+        "anomaly": "Anomaly detection",
+        "novelty": "Novelty detection (effect trajectory)",
+    }
+    _ML_WHAT_IT_SHOWS = {
+        "hte": "Which subgroups respond most strongly to the treatment.",
+        "segments": "Distinct user clusters with different treatment responses.",
+        "anomaly": "Whether metric values spiked or dipped on specific experiment days.",
+        "novelty": "Whether the treatment effect diminished over time (novelty decay).",
+    }
+    _ML_HOW_TO_ENABLE = {
+        "hte": "Upload data with feature columns (device_type, user_tenure_days, etc.).",
+        "segments": "Upload data with feature columns (device_type, user_tenure_days, etc.).",
+        "anomaly": "Add a 'date' column to your CSV with one ISO date per row.",
+        "novelty": "Add a 'date' column to your CSV with one ISO date per row.",
+    }
+
     ml_body = MLAnalysisRequest(
         control_values=ml_ctrl,
         treatment_values=ml_trt,
@@ -610,6 +629,18 @@ async def analyze_experiment_route(
         ml_result = await analysis_service.run_analysis(ml_body, db=db)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    for cap in ml_result.capability_report:
+        display = _ML_DISPLAY.get(cap.module, cap.module)
+        if cap.status == "completed":
+            techniques_ran.append(display)
+        else:
+            techniques_skipped.append(SkippedTechnique(
+                name=display,
+                reason=cap.skip_reason or f"Module {cap.module} {cap.status}.",
+                what_it_would_show=_ML_WHAT_IT_SHOWS.get(cap.module, ""),
+                how_to_enable=_ML_HOW_TO_ENABLE.get(cap.module, ""),
+            ))
 
     # ── 7. Return combined response ──────────────────────────────────────────
     return ExperimentAnalyzeResponse(
