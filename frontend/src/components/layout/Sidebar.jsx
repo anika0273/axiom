@@ -1,10 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { Home, FlaskConical, Sparkles, Plus, Zap } from 'lucide-react'
+import { Home, FlaskConical, Plus, Zap } from 'lucide-react'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home', icon: Home, end: true },
   { to: '/experiments', label: 'Experiments', icon: FlaskConical },
-  { to: '/demo', label: 'Demo', icon: Sparkles },
 ]
 
 function NavItem({ to, label, icon: Icon, end = false, mobile = false }) {
