@@ -443,11 +443,7 @@ async def analyze_experiment_route(
                     except (TypeError, ValueError):
                         row[k] = 0.0
                 user_features.append(row)
-            techniques_ran.append("HTE (XGBoost)")
-            techniques_ran.append("Segment discovery (K-means)")
-            techniques_ran.append("SHAP feature importance")
-            techniques_ran.append("Jaccard stability scoring")
-            
+
         else:
             rng = np.random.default_rng(int(experiment_id) % 2**32)
             n_feat = len(sample)
