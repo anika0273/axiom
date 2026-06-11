@@ -112,7 +112,16 @@ function buildResultFromLive(liveData, experiment) {
       },
     ],
     sequential: stats.sequential_status ?? null,
-    dailyData: liveData.daily_metrics_summary ?? null,
+    dailyData: liveData.daily_metrics_summary
+      ? liveData.daily_metrics_summary.map((d, i) => ({
+          day: i + 1,
+          effect: (d.treatment_metric ?? 0) - (d.control_metric ?? 0),
+          control: d.control_metric ?? 0,
+          treatment: d.treatment_metric ?? 0,
+          n_control: d.n_control ?? 0,
+          n_treatment: d.n_treatment ?? 0,
+        }))
+      : null,
     cuped: stats.cuped_result ?? null,
     bayesian: liveData.bayesian ?? null,
     techniques: liveData.techniques ?? null,

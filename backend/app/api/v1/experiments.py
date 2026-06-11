@@ -88,7 +88,7 @@ class ExperimentAnalyzeData(BaseModel):
     data_source: str = "synthetic"  # "real" | "synthetic"
     bayesian: BayesianResultData | None = None
     techniques: TechniquesReport | None = None
-    daily_metrics_summary: DailyMetricsSummary | None = None
+    daily_metrics_summary: list[dict] | None = None
 
 
 class ExperimentAnalyzeResponse(BaseModel):
@@ -317,7 +317,7 @@ async def analyze_experiment_route(
     )
 
     daily_df_records: list[DailyMetricRecord] | None = None
-    daily_metrics_summary: DailyMetricsSummary | None = None
+    daily_metrics_summary: list[dict] | None = None
     techniques_ran: list[str] = []
     techniques_skipped: list[SkippedTechnique] = []
 
@@ -420,11 +420,16 @@ async def analyze_experiment_route(
                         for d, row in merged.iterrows()
                     ]
                     n_days = len(merged)
-                    daily_metrics_summary = DailyMetricsSummary(
-                        n_days=n_days,
-                        date_from=str(merged.index.min().date()),
-                        date_to=str(merged.index.max().date()),
-                    )
+                    daily_metrics_summary = [
+                        {
+                            "date": r.date,
+                            "control_metric": r.control_metric,
+                            "treatment_metric": r.treatment_metric,
+                            "n_control": r.n_control,
+                            "n_treatment": r.n_treatment,
+                        }
+                        for r in daily_df_records
+                    ]
 
         # ── User features for HTE / segments ─────────────────────────────────
         n_half = min(len(ctrl_rows), len(trt_rows), 500)
