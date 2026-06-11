@@ -94,9 +94,9 @@ function buildResultFromLive(liveData, experiment) {
     plainEnglish: stats.plain_english,
     overallVerdict,
     canTrust,
-    anomaly: null,
+    anomaly: liveData.ml?.anomaly ?? null,
     segments: liveData.ml?.segments ?? null,
-    novelty: null,
+    novelty: liveData.ml?.novelty ?? null,
     hte: liveData.ml?.hte ?? null,
     keyInsights: ml?.key_insights ?? [],
     metrics: [

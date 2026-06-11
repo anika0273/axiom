@@ -270,6 +270,35 @@ class SegmentResultData(BaseModel):
     low_confidence: bool
 
 
+class ValidationCheckData(BaseModel):
+    """Single anomaly check result."""
+
+    name: str
+    passed: bool
+    severity: str
+    score: float | None = None
+    message: str | None = None
+
+
+class AnomalyResultData(BaseModel):
+    """Serialized ExperimentValidation for API responses."""
+
+    overall_validity: str
+    can_trust_results: bool
+    recommendation: str
+    checks: list[ValidationCheckData]
+
+
+class NoveltyResultData(BaseModel):
+    """Serialized EffectTrajectory for API responses."""
+
+    pattern: str
+    slope: float
+    slope_ci: list[float]
+    recommendation: str | None = None
+    steady_state_estimate: float | None = None
+
+
 class BayesianResultData(BaseModel):
     """Bayesian analysis result for API responses."""
 
@@ -331,6 +360,8 @@ class MLAnalysisResultData(BaseModel):
     result_id: UUID | None = None
     hte: HTEResultData | None = None
     segments: SegmentResultData | None = None
+    anomaly: AnomalyResultData | None = None
+    novelty: NoveltyResultData | None = None
 
 
 class MLAnalysisResponse(BaseModel):

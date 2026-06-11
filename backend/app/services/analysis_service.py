@@ -10,13 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ml.engine import MLExperimentInput, run_ml_analysis
 from app.repositories import result_repo
 from app.schemas.ml import (
+    AnomalyResultData,
     DailyMetricRecord,
     HTEResultData,
     MLAnalysisRequest,
     MLAnalysisResultData,
     ModuleStatusOut,
+    NoveltyResultData,
     SegmentProfileData,
     SegmentResultData,
+    ValidationCheckData,
 )
 
 
@@ -68,6 +71,40 @@ def _build_result_data(
             low_confidence=seg.low_confidence,
         )
 
+    anomaly_data = None
+    if ml_result.anomaly_result is not None:
+        a = ml_result.anomaly_result
+        anomaly_data = AnomalyResultData(
+            overall_validity=a.overall_validity,
+            can_trust_results=a.can_trust_results,
+            recommendation=a.recommendation,
+            checks=[
+                ValidationCheckData(
+                    name=c.name,
+                    passed=c.passed,
+                    severity=c.severity,
+                    score=float(c.score) if c.score is not None else None,
+                    message=c.description if hasattr(c, "description") else None,
+                )
+                for c in a.checks
+            ],
+        )
+
+    novelty_data = None
+    if ml_result.novelty_result is not None:
+        n = ml_result.novelty_result
+        novelty_data = NoveltyResultData(
+            pattern=n.pattern,
+            slope=float(n.slope),
+            slope_ci=list(n.slope_ci),
+            recommendation=n.recommendation,
+            steady_state_estimate=(
+                float(n.projected_stable_lift)
+                if hasattr(n, "projected_stable_lift") and n.projected_stable_lift is not None
+                else None
+            ),
+        )
+
     return MLAnalysisResultData(
         overall_verdict=ml_result.overall_verdict,
         key_insights=ml_result.key_insights,
@@ -86,6 +123,8 @@ def _build_result_data(
         result_id=stored_id,
         hte=hte_data,
         segments=segments_data,
+        anomaly=anomaly_data,
+        novelty=novelty_data,
     )
 
 
