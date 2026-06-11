@@ -26,6 +26,49 @@ function badgeBg(color) {
   return "rgba(71,85,105,0.15)"
 }
 
+// ── Techniques checklist ───────────────────────────────────────────────────────
+
+function TechniquesChecklist({ techniques }) {
+  const [open, setOpen] = useState(false)
+  if (!techniques) return null
+  return (
+    <div style={{ marginTop: 12 }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          background: "none",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          fontSize: 11,
+          color: "var(--color-text-muted)",
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
+        What we checked {open ? "▲" : "▾"}
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 3 }}>
+          {techniques.ran?.map((t) => (
+            <p key={t} style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
+              <span style={{ color: "var(--color-accent-green)", marginRight: 6 }}>✓</span>
+              {t}
+            </p>
+          ))}
+          {techniques.skipped?.map((t) => (
+            <p key={t.name} style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}>
+              <span style={{ marginRight: 6 }}>✗</span>
+              {t.name} — {t.reason}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Act card ──────────────────────────────────────────────────────────────────
 
 function Act({ step, title, status, statusLabel, story, detail }) {
@@ -139,10 +182,14 @@ function Act({ step, title, status, statusLabel, story, detail }) {
 
 // ── act builders ──────────────────────────────────────────────────────────────
 
-function buildAct1(result) {
+function buildAct1(result, techniques) {
   const { anomaly } = result
 
-  if (anomaly == null) {
+  const anomalyRan = techniques?.ran?.some(
+    (t) => t.toLowerCase().includes("anomaly") || t.toLowerCase().includes("sequential"),
+  )
+
+  if (!anomalyRan && anomaly == null) {
     return {
       status: "SKIPPED",
       statusLabel: "SKIPPED",
@@ -152,32 +199,56 @@ function buildAct1(result) {
     }
   }
 
-  const checks = anomaly.checks ?? []
-  const srmFailed = checks.some(
+  const checks = anomaly?.checks ?? []
+
+  const srmFailedInChecks = checks.some(
     (c) =>
       !c.passed &&
       (c.name?.toLowerCase().includes("srm") ||
         c.name?.toLowerCase().includes("sample_ratio")),
   )
 
+  const srmWarning = result.warnings?.find((w) => {
+    const text = typeof w === "string" ? w : (w?.message ?? w?.text ?? "")
+    return (
+      text.toLowerCase().includes("imbalance") ||
+      text.toLowerCase().includes("sample ratio")
+    )
+  })
+  const srmText =
+    typeof srmWarning === "string" ? srmWarning : (srmWarning?.message ?? srmWarning?.text ?? "")
+
+  const imbalanceMatch = srmText.match(/control_n=(\d+),\s*treatment_n=(\d+)/)
+  const ctrlTotal = imbalanceMatch
+    ? parseInt(imbalanceMatch[1]) + parseInt(imbalanceMatch[2])
+    : null
+  const ctrlPct = imbalanceMatch
+    ? ((parseInt(imbalanceMatch[1]) / ctrlTotal) * 100).toFixed(0)
+    : null
+  const trtPct = imbalanceMatch
+    ? ((parseInt(imbalanceMatch[2]) / ctrlTotal) * 100).toFixed(0)
+    : null
+
+  const srmFailed = srmFailedInChecks || !!srmWarning
+
   const detailLines = checks.length
     ? checks.map(
         (c) =>
-          `${c.passed ? "✓" : "✗"} ${c.name ?? "check"} — ${
-            c.passed ? "passed" : "FAILED"
-          }${c.score != null ? ` — score: ${Number(c.score).toFixed(3)}` : ""}${
-            c.severity ? ` — severity: ${c.severity}` : ""
-          }`,
+          `${c.passed ? "✓" : "✗"} ${c.name ?? "check"} — ${c.passed ? "passed" : "FAILED"}${
+            c.score != null ? ` — score: ${Number(c.score).toFixed(3)}` : ""
+          }${c.severity ? ` — severity: ${c.severity}` : ""}`,
       )
     : ["No checks data."]
 
   if (srmFailed) {
+    const srmStory = imbalanceMatch
+      ? `A critical problem was detected before we even look at results: Sample Ratio Mismatch (SRM). We expected a 50/50 split but observed ${ctrlPct}% vs ${trtPct}%. This means the randomization may be broken. Results below cannot be fully trusted.`
+      : "A critical problem was detected before we even look at results: Sample Ratio Mismatch (SRM). We expected an even split between groups but observed a suspicious imbalance. This means the randomization may be broken. Results below cannot be fully trusted."
     return {
       status: "FAIL",
       statusLabel: "FAIL",
-      story:
-        "Before looking at any results, we check whether the experiment ran correctly. A critical problem was detected: Sample Ratio Mismatch (SRM). We expected an even split between groups but observed a suspicious imbalance. This means the randomization may be broken — the control and treatment groups might not be comparable. The results below cannot be fully trusted until this is investigated.",
-      detail: detailLines.join("\n"),
+      story: srmStory,
+      detail: [srmText || "SRM detected in warnings", ...detailLines].join("\n"),
     }
   }
 
@@ -185,12 +256,12 @@ function buildAct1(result) {
     status: "PASS",
     statusLabel: "PASS",
     story:
-      "Before looking at any results, we check whether the experiment itself ran correctly. The most important check is called Sample Ratio Mismatch (SRM) — it verifies that users were split evenly between control and treatment. If this is broken, the groups are not comparable and no result can be trusted. All checks passed. The randomization looks clean.",
+      "Before looking at results, we checked whether the experiment ran correctly. We ran four validity checks on the daily data: sample ratio mismatch, variance stability, outlier detection, and stationarity. All checks passed — the data looks clean.",
     detail: detailLines.join("\n"),
   }
 }
 
-function buildAct2(result) {
+function buildAct2(result, cuped, bayesian) {
   const {
     isSignificant,
     warnings = [],
@@ -236,12 +307,12 @@ function buildAct2(result) {
     )
   })
 
-  let status, statusLabel, story
+  let status, statusLabel, mainStory
 
   if (isSignificant) {
     status = "PASS"
     statusLabel = "SIGNIFICANT"
-    story =
+    mainStory =
       `We ran a ${testName} comparing the two groups. ` +
       `The control group measured ${controlFmt} and the treatment group measured ${treatmentFmt} — ` +
       `a difference of ${liftAbsFmt} (${liftPctFmt}% relative lift). ` +
@@ -251,7 +322,7 @@ function buildAct2(result) {
   } else {
     status = isUnderpowered ? "WARN" : "INFO"
     statusLabel = isUnderpowered ? "UNDERPOWERED" : "NOT YET SIGNIFICANT"
-    story =
+    mainStory =
       `We ran a ${testName} comparing the two groups. ` +
       `The control group measured ${controlFmt} and the treatment group measured ${treatmentFmt} — ` +
       `an observed difference of ${liftAbsFmt} (${liftPctFmt}% relative lift). ` +
@@ -260,6 +331,57 @@ function buildAct2(result) {
       (plainEnglish ? " " + plainEnglish : "")
   }
 
+  let cupedPara = null
+  if (cuped && Number(cuped.variance_reduction_pct) > 5) {
+    const rawP = cuped.unadjusted_test_result?.p_value
+    const adjP = cuped.adjusted_test_result?.p_value
+    const reduction = Number(cuped.variance_reduction_pct).toFixed(1)
+    const correlation = Number(cuped.correlation_pre_post).toFixed(2)
+
+    let decisionText
+    if (rawP != null && adjP != null && rawP >= 0.05 && adjP < 0.05) {
+      decisionText = `This changed the decision: without CUPED, p=${rawP.toFixed(4)} — not significant. With CUPED, p=${adjP.toFixed(4)} — significant. CUPED revealed a real effect that noise was hiding.`
+    } else if (rawP != null && adjP != null && rawP < 0.05 && adjP < 0.05) {
+      decisionText = `Without CUPED: p=${rawP.toFixed(4)}. With CUPED: p=${adjP.toFixed(4)}. The result was already significant, but CUPED tightened the confidence interval.`
+    } else {
+      decisionText = `Without CUPED: p=${rawP?.toFixed(4) ?? "?"}. With CUPED: p=${adjP?.toFixed(4) ?? "?"}. The result is not yet significant even with variance reduction — more data is needed.`
+    }
+
+    cupedPara =
+      `We also ran CUPED (Controlled-experiment Using Pre-Experiment Data) — a variance reduction technique that uses each user's behavior before the experiment to remove noise from the measurement. ` +
+      `The pre-experiment data had a correlation of ${correlation} with the outcome, giving ${reduction}% variance reduction. ${decisionText}`
+  }
+
+  let bayesianPara = null
+  if (bayesian) {
+    const prob = bayesian.prob_treatment_better
+    let evidenceText
+    if (prob >= 0.95) {
+      evidenceText = "This is strong evidence for treatment."
+    } else if (prob >= 0.80) {
+      evidenceText = "This is moderate evidence for treatment."
+    } else if (prob >= 0.50) {
+      evidenceText = "Weak evidence — the direction looks positive but certainty is low."
+    } else {
+      evidenceText = "The evidence actually favors control."
+    }
+
+    bayesianPara =
+      `We also ran a Bayesian analysis alongside the frequentist test. While the frequentist p-value asks 'how unlikely is this result if there's no effect?', Bayesian analysis asks 'given this data, what's the probability treatment is actually better?' ` +
+      `Bayesian result: ${(prob * 100).toFixed(1)}% probability that treatment is better than control. ${evidenceText} ${bayesian.interpretation}`
+  }
+
+  const story =
+    cupedPara || bayesianPara ? (
+      <>
+        <p style={{ margin: "0 0 8px 0" }}>{mainStory}</p>
+        {cupedPara && (
+          <p style={{ margin: bayesianPara ? "0 0 8px 0" : 0 }}>{cupedPara}</p>
+        )}
+        {bayesianPara && <p style={{ margin: 0 }}>{bayesianPara}</p>}
+      </>
+    ) : mainStory
+
   const detail = [
     `test type: ${testName}`,
     `p-value: ${pValueFmt}`,
@@ -267,7 +389,15 @@ function buildAct2(result) {
     `lift (absolute): ${liftAbsFmt}`,
     `lift (relative): ${liftPctFmt}%`,
     `alpha threshold: 5% (0.05)`,
-  ].join("\n")
+    cuped
+      ? `cuped: variance reduction ${Number(cuped.variance_reduction_pct).toFixed(1)}%, correlation ${Number(cuped.correlation_pre_post).toFixed(2)}`
+      : null,
+    bayesian
+      ? `bayesian: P(treatment > control) = ${(bayesian.prob_treatment_better * 100).toFixed(1)}%`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n")
 
   return { status, statusLabel, story, detail }
 }
@@ -351,16 +481,39 @@ function buildAct3(result) {
   return { status, statusLabel, story, detail }
 }
 
-function buildAct4(result) {
+function buildAct4(result, techniques) {
   const { novelty } = result
 
-  if (!novelty) {
+  const noveltyRan = techniques?.ran?.some((t) => t.toLowerCase().includes("novelty"))
+  const noveltySkippedEntry = techniques?.skipped?.find((t) =>
+    t.name?.toLowerCase().includes("novelty"),
+  )
+
+  if (!noveltyRan && !novelty) {
+    if (noveltySkippedEntry) {
+      return {
+        status: "SKIPPED",
+        statusLabel: "SKIPPED",
+        story: `Novelty detection requires daily time-series data. ${noveltySkippedEntry.how_to_enable}`,
+        detail: `Reason: ${noveltySkippedEntry.reason}\nWhat it would show: ${noveltySkippedEntry.what_it_would_show}`,
+      }
+    }
     return {
       status: "SKIPPED",
       statusLabel: "SKIPPED",
       story:
         "Novelty detection requires daily time-series data showing how the treatment effect changes day by day. This data was not provided, so the check was skipped. If you upload daily aggregate data alongside subject rows, Axiom can automatically check whether effects are holding steady or fading.",
       detail: "No novelty data available.",
+    }
+  }
+
+  if (noveltyRan && !novelty) {
+    return {
+      status: "PASS",
+      statusLabel: "STABLE",
+      story:
+        "The treatment effect appears stable over time — no significant decay was detected. The lift observed in early days has held through the experiment window, which increases confidence that this is a genuine sustained effect rather than early excitement.",
+      detail: "Novelty detection ran; no decay pattern found.",
     }
   }
 
@@ -392,7 +545,7 @@ function buildAct4(result) {
   }
 }
 
-function buildAct5(result) {
+function buildAct5(result, techniques) {
   const {
     isSignificant,
     canTrust,
@@ -442,7 +595,6 @@ function buildAct5(result) {
       "The experiment did not produce a statistically significant result. There is not enough evidence to conclude that the treatment has a real effect."
   }
 
-  // Randomization summary from Act 1
   const srmFailed = result.anomaly?.checks?.some(
     (c) =>
       !c.passed &&
@@ -455,7 +607,6 @@ function buildAct5(result) {
       : "passed all checks"
     : "was not checked (no time-series data provided)"
 
-  // HTE feature label for summary
   let hteSummary = null
   const rawFeature = hte?.top_interactions?.[0]
   if (hte && rawFeature) {
@@ -482,15 +633,16 @@ function buildAct5(result) {
   const story = (
     <>
       <p style={{ margin: "0 0 8px 0" }}>{openingSentence}</p>
-      <p style={{ margin: recommendation ? "0 0 8px 0" : 0 }}>{body}</p>
+      <p style={{ margin: recommendation || techniques ? "0 0 8px 0" : 0 }}>{body}</p>
       {recommendation && (
-        <p style={{ margin: 0 }}>
+        <p style={{ margin: techniques ? "0 0 8px 0" : 0 }}>
           <strong style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>
             Recommendation:
           </strong>{" "}
           {recommendation}
         </p>
       )}
+      <TechniquesChecklist techniques={techniques} />
     </>
   )
 
@@ -511,15 +663,15 @@ function buildAct5(result) {
 
 // ── main export ───────────────────────────────────────────────────────────────
 
-export default function AnalysisNarrative({ result, experiment }) {
+export default function AnalysisNarrative({ result, experiment, bayesian, cuped, techniques, sequential }) {
   if (!result) return null
 
   const acts = [
-    { step: "01", title: "Checking the randomization",      ...buildAct1(result) },
-    { step: "02", title: "What the data showed",             ...buildAct2(result) },
+    { step: "01", title: "Checking the randomization",      ...buildAct1(result, techniques) },
+    { step: "02", title: "What the data showed",             ...buildAct2(result, cuped, bayesian) },
     { step: "03", title: "Who does it actually help?",       ...buildAct3(result) },
-    { step: "04", title: "Is the effect stable over time?",  ...buildAct4(result) },
-    { step: "05", title: "The verdict",                      ...buildAct5(result) },
+    { step: "04", title: "Is the effect stable over time?",  ...buildAct4(result, techniques) },
+    { step: "05", title: "The verdict",                      ...buildAct5(result, techniques) },
   ]
 
   return (

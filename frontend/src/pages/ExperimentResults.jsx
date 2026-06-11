@@ -112,7 +112,10 @@ function buildResultFromLive(liveData, experiment) {
       },
     ],
     sequential: stats.sequential_status ?? null,
-    dailyData: null,
+    dailyData: liveData.daily_metrics_summary ?? null,
+    cuped: stats.cuped_result ?? null,
+    bayesian: liveData.bayesian ?? null,
+    techniques: liveData.techniques ?? null,
   }
 }
 
@@ -502,8 +505,62 @@ export default function ExperimentResults() {
             <AnomalyFlags anomaly={result.anomaly} />
           )}
 
+          {/* Bayesian summary card */}
+          {liveResult?.bayesian && (
+            <div
+              className="mb-4 px-4 py-3 rounded-lg border"
+              style={{
+                backgroundColor: 'var(--color-bg-elevated)',
+                borderColor: 'var(--color-border-subtle)',
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p
+                    className="text-xs uppercase tracking-widest font-medium mb-1"
+                    style={{ color: 'var(--color-text-muted)' }}
+                  >
+                    Bayesian Analysis
+                  </p>
+                  <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                    <span
+                      className="font-mono font-medium"
+                      style={{ color: 'var(--color-accent-blue)' }}
+                    >
+                      {(liveResult.bayesian.prob_treatment_better * 100).toFixed(1)}%
+                    </span>
+                    {' '}probability treatment is better than control
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p
+                    className="text-xs"
+                    style={{ color: 'var(--color-text-muted)' }}
+                  >
+                    {liveResult.bayesian.method?.toLowerCase().includes('beta')
+                      ? 'Beta-Binomial model'
+                      : 'Normal-Normal model'}
+                  </p>
+                  <p
+                    className="text-xs mt-0.5"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
+                    {liveResult.bayesian.interpretation}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Analysis narrative — five-act story replacing raw key_insights */}
-          <AnalysisNarrative result={result} experiment={experiment} />
+          <AnalysisNarrative
+            result={result}
+            experiment={experiment}
+            bayesian={liveResult?.bayesian ?? null}
+            cuped={liveResult?.stats?.cuped_result ?? null}
+            techniques={liveResult?.techniques ?? null}
+            sequential={liveResult?.stats?.sequential_status ?? null}
+          />
 
           {/* SECTION 4: Metric comparison chart */}
           <MetricComparisonChart

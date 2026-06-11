@@ -338,11 +338,12 @@ async def analyze_experiment_route(
         has_cuped = "pre_experiment_outcome" in all_cov_keys
         date_key: str | None = (
             "date" if "date" in all_cov_keys
-            else ("day" if "day" in all_cov_keys else None)
+            else ("day" if "day" in all_cov_keys
+            else ("experiment_day" if "experiment_day" in all_cov_keys else None))
         )
         feature_keys = sorted(
             k for k in all_cov_keys
-            if k not in {"pre_experiment_outcome", "date", "day"}
+            if k not in {"pre_experiment_outcome", "date", "day", "experiment_day"}
         )
 
         # ── CUPED covariates (control first, then treatment) ─────────────────

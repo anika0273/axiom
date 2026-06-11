@@ -94,13 +94,13 @@ async def seed(session: AsyncSession) -> None:
                 "to guide new users toward activation milestones."
             ),
             status=ExperimentStatus.running,
-            experiment_type=ExperimentType.proportion,
+            experiment_type=ExperimentType.mean,
             hypothesis=(
-                "An interactive checklist will increase trial-to-paid conversion by "
-                "2 pp, with heterogeneous effects by company size."
+                "An interactive checklist will increase activation score by "
+                "1.5 points, with heterogeneous effects by company size."
             ),
-            baseline_metric=0.12,
-            mde=0.02,
+            baseline_metric=26.0,
+            mde=1.5,
             alpha=0.05,
             power=0.80,
             daily_traffic_estimate=5000,
