@@ -1,316 +1,342 @@
-# Axiom Synthetic Demo Datasets
+# Axiom Demo Datasets
 
-Three independent datasets, each designed to tell a different story and activate different analytical techniques in the Axiom pipeline. They are not subsets of a single large dataset — each has its own business context, distribution choices, and deliberate design decisions.
-
----
-
-## Why three separate datasets?
-
-Real experimentation platforms run hundreds of experiments simultaneously, each with different metrics, populations, and business questions. A single monolithic dataset would obscure the range of patterns the platform can handle. Three separate datasets let each story stay clean:
-
-- **E-Commerce** shows a clear winner with heterogeneous treatment effects by device type
-- **SaaS** demonstrates how variance reduction (CUPED) can flip a borderline decision
-- **Marketplace** shows what a broken experiment looks like and why that matters
+Three synthetic datasets, each designed to tell a different story
+and activate different techniques in the analysis pipeline.
 
 ---
 
-## Dataset 1: E-Commerce Checkout Redesign
+## Why three separate datasets
 
-**File:** `ecommerce_checkout.csv`  
-**Experiment type:** Proportion (binary conversion)  
-**Sample size:** 5,000 control + 5,000 treatment = 10,000 total
+Real companies run hundreds of independent experiments — not one
+large shared dataset. Each experiment has its own business context,
+metric type, and failure mode. Keeping them separate makes each
+story cleaner and more explainable.
 
-### Business context
-
-An e-commerce company tests a simplified single-page checkout flow against their current multi-step checkout. The primary question: does the new checkout increase the percentage of users who complete a purchase?
-
-### What story it tells
-
-The new checkout works — but it works much better for mobile users than desktop users. The platform's HTE module discovers this automatically via SHAP feature importance. The segment analysis finds two stable clusters: high-response mobile users and low-response desktop users. This is the kind of finding that tells a product team where to focus next.
-
-There is also a small novelty effect in the first 7 days — users notice the new interface and engage with it slightly more than they will long-term. The novelty detection module flags this, which is important context for interpreting the result.
-
-### Distribution choices and why
-
-| Choice | Rationale |
-|--------|-----------|
-| Bernoulli outcome | Each user either converts (1) or doesn't (0). This is the standard for checkout experiments. |
-| Exponential tenure distribution | Most users are relatively new; a few have been around for years. Exponential matches observed signup curves. |
-| Zero-inflated cart value | 25% of users are just browsing with empty carts. These users have near-zero conversion probability regardless of checkout design. |
-| Lognormal cart value | Real purchase amounts are right-skewed — many small purchases, occasional large ones. |
-| Normal noise on treatment effect | The treatment effect isn't constant across users, even within device type. There's natural variation. |
-
-### Realism injected
-
-- Day-of-week traffic variation (weekday peak, weekend dip for B2C)
-- Device-type heterogeneity in treatment response (published benchmark)
-- Novelty spike in first 7 days with exponential decay
-- Pre-experiment covariate correlated ~0.55 with post-experiment outcome (realistic for 30-day pre-period on conversion)
-- Outliers in cart values at 2% rate (power users, bots)
-
-### What synthetic data cannot capture
-
-- Actual cart abandonment patterns (where in the flow users drop off)
-- Page load time effects on conversion
-- Payment method preferences by demographic
-- Return customer recognition and personalization effects
-- External events (promotional emails, competitor changes)
-- Mobile app vs mobile web differences
-
-### Column definitions
-
-| Column | Type | Range | Description |
-|--------|------|--------|-------------|
-| `subject_id` | string | `ecom_000000`–`ecom_009999` | Unique pseudonymous user ID |
-| `variant` | int | 0 or 1 | 0 = current multi-step checkout, 1 = new single-page checkout |
-| `outcome` | float | 0 or 1 | 1 = completed purchase, 0 = did not complete |
-| `device_type` | float | 0, 1, 2 | 0 = mobile (40%), 1 = tablet (20%), 2 = desktop (40%) |
-| `user_tenure_days` | float | 1–730 | Days since first visit, exponential distribution |
-| `cart_value` | float | 0–500+ | Value of items in cart; 25% zero (browsing only) |
-| `is_returning_user` | float | 0 or 1 | Whether user has purchased before |
-| `pre_experiment_outcome` | float | 0 or 1 | Whether user converted in the 30-day pre-period |
-| `experiment_day` | int | 1–30 | Day of experiment the user was exposed |
-
-### Techniques activated
-
-| Technique | Why it activates |
-|-----------|-----------------|
-| Z-test | Binary proportion outcome |
-| Bayesian (Beta-Binomial) | Binary proportion outcome with Beta(1,1) prior |
-| CUPED | `pre_experiment_outcome` column present; ~0.55 pre-post correlation |
-| Sequential (O'Brien-Fleming) | `experiment_day` column present; 30 days of data |
-| Anomaly detection | Daily time series reveals novelty spike days 1–7 |
-| Novelty detection | Treatment effect trajectory shows decay toward steady state |
-| HTE (XGBoost + SHAP) | `device_type`, `user_tenure_days`, `cart_value` feature columns |
-| Segment discovery (k-means + Jaccard) | Same feature columns; mobile vs desktop creates 2 stable clusters |
-
----
-
-## Dataset 2: SaaS Onboarding Checklist
-
-**File:** `saas_onboarding.csv`  
-**Experiment type:** Proportion (binary conversion)  
-**Sample size:** 5,000 control + 5,000 treatment = 10,000 total
-
-### Business context
-
-A B2B SaaS company tests an interactive onboarding checklist against their current empty dashboard. New trial users are either shown the checklist (with guided setup tasks) or the blank dashboard. The metric is trial-to-paid conversion within 30 days.
-
-### What story it tells
-
-This is the most important demonstration in the platform. Without CUPED, the result is *not statistically significant* (p ≈ 0.061). With CUPED variance reduction applied, it *is* significant (p ≈ 0.028). The checklist should be shipped — but only if you run the right analysis.
-
-This demonstrates that variance reduction is not a statistical nicety. It can determine whether a product gets built or abandoned.
-
-### Why we engineered a borderline result
-
-The p-value near 0.06 was deliberate. It creates a scenario where:
-- A naive analyst says "not significant, don't ship"
-- An analyst with CUPED says "significant, ship it"
-- Both are looking at the same data
-
-This forces a conversation about methodology that most dashboards never surface. Axiom surfaces it automatically.
-
-The mechanism: users who converted before the experiment (high `pre_experiment_outcome`) are likely to convert again regardless of treatment. Their variance adds noise that obscures the real signal. CUPED removes that noise by adjusting for the pre-period covariate, reducing variance by ~42% and pushing the result over the significance threshold.
-
-### Heterogeneity: enterprise vs SMB
-
-Enterprise users (company size > 100) benefit ~5x more from the checklist than small businesses. The reasons are intuitive: enterprise teams have multiple stakeholders who need to reach consensus on adoption, and the checklist gives them a shared vocabulary and progress tracker. Solo founders at small companies just want to try the product directly.
-
-The HTE module discovers this divide automatically. The segment discovery module finds two stable clusters corresponding closely to enterprise and SMB.
-
-### Column definitions
-
-| Column | Type | Range | Description |
-|--------|------|--------|-------------|
-| `subject_id` | string | `saas_000000`–`saas_009999` | Unique pseudonymous user ID |
-| `variant` | int | 0 or 1 | 0 = empty dashboard, 1 = onboarding checklist |
-| `outcome` | float | 0 or 1 | 1 = converted to paid, 0 = did not convert |
-| `company_size` | float | 1–10000 | Number of employees, lognormal distribution |
-| `days_since_signup` | float | 1–90 | Days since trial started, exponential distribution |
-| `plan_type` | float | 0, 1, 2 | 0 = free, 1 = trial, 2 = paid |
-| `feature_usage_count` | float | 0–25+ | Features used in first week, Poisson distribution |
-| `pre_experiment_outcome` | float | 0 or 1 | Whether user converted in the previous trial cohort |
-| `experiment_day` | int | 1–30 | Day of experiment the user was exposed |
-
-### Techniques activated
-
-| Technique | Why it activates |
-|-----------|-----------------|
-| Z-test | Binary proportion outcome |
-| Bayesian (Beta-Binomial) | Binary proportion outcome |
-| CUPED | **Changes the decision.** `pre_experiment_outcome` present; ~0.65 pre-post correlation |
-| Sequential | `experiment_day` present; 30 days |
-| Anomaly detection | Daily time series; no anomalies by design (stable UI change) |
-| Novelty detection | No decay — checklist is a persistent UI element, not a novelty |
-| HTE (XGBoost + SHAP) | `company_size`, `days_since_signup`, `plan_type`, `feature_usage_count` |
-| Segment discovery | Company size creates 2 clear clusters: enterprise and SMB |
-
----
-
-## Dataset 3: Marketplace Fee Reduction
-
-**File:** `marketplace_fee.csv`  
-**Experiment type:** Mean (continuous GMV)  
-**Sample size:** 4,500 control + 5,500 treatment = 10,000 total
-
-### Business context
-
-An online marketplace reduces the seller transaction fee from 8% to 5%, hypothesizing that lower fees will drive higher gross merchandise value (GMV) per seller. The primary metric is total GMV in the 30-day experiment window.
-
-### Why it is intentionally broken
-
-This experiment has two compounding problems:
-
-**Problem 1: Sample ratio mismatch (SRM)**  
-The target split was 50/50. The actual split is 45/55. Larger, more established sellers heard about the fee reduction through informal channels before the experiment launched and self-selected into the treatment group. The treatment group is not a random sample of sellers — it is a systematically different population.
-
-This is a real problem in marketplace experiments. Sellers are often interconnected through forums, Slack communities, and industry newsletters. Keeping treatment assignment secret is harder than in consumer experiments.
-
-The SRM detection module flags this within seconds. Without it, you would never notice the problem from the p-value alone — the experiment would look significant, and you would make a decision based on biased data.
-
-**Problem 2: Strong novelty effect**  
-When fees drop, sellers immediately rush to list more items. GMV spikes dramatically in the first 5 days, then decays toward a new steady state over 2 weeks. The observed lift during the novelty window is approximately $7, but the true sustainable lift is approximately $4. If you analyze results at day 7, you will overestimate the benefit by ~75%.
-
-The novelty detection module identifies this decay pattern and warns that early results may not be representative.
-
-### Why a broken experiment teaches more than a clean one
-
-Every analyst knows what a significant result looks like. Fewer have seen what a broken one looks like before it's too late. This dataset gives analysts experience recognizing:
-- What SRM looks like in the numbers (asymmetric groups, selection bias)
-- What novelty decay looks like in a time series (high early, stabilizing)
-- Why "significant" and "trustworthy" are different things
-
-The correct decision for this experiment is: **do not ship, redesign the experiment** with pre-registration and blinded assignment. The true fee reduction effect is real but the measurement cannot be trusted.
-
-### Column definitions
-
-| Column | Type | Range | Description |
-|--------|------|--------|-------------|
-| `subject_id` | string | `mkt_000000`–`mkt_009999` | Unique pseudonymous seller ID |
-| `variant` | int | 0 or 1 | 0 = 8% fee (control), 1 = 5% fee (treatment) |
-| `outcome` | float | 0–2000+ | Total GMV in experiment window ($), lognormal + outliers |
-| `seller_tenure_days` | float | 1–1825 | Days since seller joined marketplace |
-| `avg_listing_price` | float | 1–500 | Average price of items listed, lognormal |
-| `listings_count` | float | 0–40+ | Number of active listings, Poisson |
-| `category_id` | float | 0–9 | Product category (proxy feature) |
-| `pre_experiment_outcome` | float | 0+ | GMV in the prior 30-day period ($) |
-| `experiment_day` | int | 1–30 | Day seller first exposed to new fee |
-
-### Techniques activated
-
-| Technique | Result |
-|-----------|--------|
-| Welch t-test | Significant — but untrustworthy due to SRM |
-| Bayesian (Normal-CLT) | High probability treatment better — but biased |
-| CUPED | Activates (pre_experiment_outcome present); still biased by SRM |
-| Sequential | Activates; early looks show inflated effect |
-| Anomaly detection | Flags variance instability from outliers and novelty |
-| Novelty detection | **Strong decay pattern detected** — effect trajectory declines |
-| HTE | Veteran sellers (tenure > 365) show 2x response |
-| Segment discovery | High-tenure vs new-seller clusters emerge |
-| **SRM detection** | **FAILS — broken assignment flagged in warnings** |
+Each dataset is independently realistic. They do not share subjects
+or outcomes.
 
 ---
 
 ## How synthetic data differs from real data
 
 ### What we can simulate
-
-- Distribution shape (normal, lognormal, Poisson, Bernoulli)
-- Heterogeneous treatment effects by observable features
-- Day-of-week traffic patterns
-- Novelty effects with designed decay curves
-- Pre-experiment covariate correlation
-- Outliers at specified rates
-- Broken randomization (by design)
-- Zero-inflated outcomes
+- Realistic outcome distributions (lognormal revenue, binary conversion)
+- Day-of-week traffic patterns (lower weekends for B2B products)
+- Heterogeneous treatment effects (some users respond, others don't)
+- Novelty effects (initial excitement that fades over time)
+- Broken randomization (self-selection bias in Marketplace)
+- Pre-experiment covariates that correlate with outcomes
 
 ### What we cannot simulate
+- Unknown confounders — real data has variables we never measured
+- External events — competitor launches, holidays, infrastructure outages
+- Measurement bugs — duplicate events, late-arriving data, tracking gaps
+- Seasonal patterns — real products have weekly and monthly cycles
+- User churn during the experiment — some users disappear mid-experiment
+- Network effects — treatment of one user affecting another
 
-| Real-world phenomenon | Why it matters |
-|-----------------------|---------------|
-| Unknown confounders | Real data has variables we never measured that affect the outcome |
-| External events | Competitor promotions, news events, algorithm changes happen mid-experiment |
-| Measurement error | Duplicate events, delayed attribution, pipeline bugs |
-| Non-stationary effects | Treatment effects that change as the market adapts |
-| Social spillover | Control users talking to treatment users and changing their behavior |
-| Survivorship bias | Users who churned before the experiment cannot be included |
-| Selection into the experiment | Real assignment mechanisms are rarely perfectly random |
+### How we inject realism
+- Right-skewed distributions for revenue (lognormal, not normal)
+- Zero-inflation for conversion (many users never convert regardless)
+- Day-of-week multipliers on daily traffic (Tuesday peak, Sunday trough)
+- Partial heterogeneity — treatment effects are noisy, not perfectly clean
+- Outliers at realistic rates (2-5% of users have extreme values)
+- Natural trend component (users naturally improve over time)
 
-### Why "too clean" is a problem
+### The honest limitation
+Synthetic data is designed to tell a specific story. In a real
+experiment, you do not know in advance whether CUPED will flip
+the decision, whether novelty will decay, or whether SRM will
+be detected. The demo datasets show the most instructive scenarios
+— not guaranteed real-world outcomes.
 
-Our synthetic data has cleaner treatment effects, more stable time series, and more separable segments than real data. This means:
+---
 
-- CUPED variance reduction may appear stronger than it would in practice
-- Segment boundaries may be sharper than real clusters
-- Novelty decay may follow a smoother curve than real user behavior
-- HTE SHAP values may point to cleaner feature importance than reality
+## Dataset 1: E-Commerce Checkout Redesign
 
-Real experiments are messier. The platform handles real data well, but the demo datasets show idealized versions of each pattern. Treat them as illustrations, not guarantees.
+**File:** `ecommerce_checkout.csv`
+**Experiment type:** Proportion (binary conversion)
+**Size:** 10,000 subjects — 5,000 control, 5,000 treatment
+**Duration:** 30 days
 
-### How realism was injected
+### Business context
+An e-commerce company tests a simplified single-page checkout
+against their current multi-step flow. The hypothesis is that
+removing friction from the checkout process increases conversion.
 
-Despite the above limitations, we made specific choices to avoid the most artificial patterns:
+### What story it tells
+A clean, well-powered experiment with a significant result.
+But the average lift hides an important story: mobile users
+respond dramatically better than desktop users. Shipping to
+all users equally is correct, but the business insight is that
+the new checkout was designed for mobile.
 
-1. **Right-skewed distributions** — Revenue and engagement metrics use lognormal distributions, not normal. Real purchase amounts are never symmetric.
+### Column definitions
 
-2. **Zero inflation** — 25% of e-commerce users have empty carts. Conversion experiments on a fully engaged population overstate how checkouts perform in practice.
+| Column | Type | Range | Description |
+|---|---|---|---|
+| subject_id | string | ecom_000000–ecom_009999 | Unique user identifier |
+| variant | int | 0 or 1 | 0=control (old checkout), 1=treatment (new) |
+| outcome | float | 0 or 1 | 1 if user completed purchase |
+| device_type | float | 0, 1, 2 | 0=mobile, 1=tablet, 2=desktop |
+| user_tenure_days | float | 1–730 | Days since first visit, exponential distribution |
+| cart_value | float | 0–500 | Value of items in cart, lognormal, 25% zero |
+| is_returning_user | float | 0 or 1 | 1 if user has purchased before |
+| pre_experiment_outcome | float | 0 or 1 | Did user convert in 30 days before experiment? |
+| experiment_day | int | 1–30 | Day of experiment user was assigned |
 
-3. **Correlated noise on treatment effects** — The effect isn't a constant shift for all users. We add per-user noise that is correlated with their features, creating the messier heterogeneity that real data shows.
+### Distribution choices
+- **user_tenure_days**: Exponential(scale=60) — most users are
+  relatively new, long tail of veteran users. This is realistic
+  for e-commerce where most traffic is new or occasional visitors.
+- **cart_value**: Lognormal(mean=3.5, sigma=0.8) with 25%
+  zero-inflation — most carts are small, a few are large, many
+  users browse without adding items. This matches real purchase
+  amount distributions.
+- **device_type**: 40% mobile, 20% tablet, 40% desktop — typical
+  for a mid-size e-commerce site.
 
-4. **Day-of-week variation** — Weekend traffic dips are built into the daily time series. Experiments that run over weekends show this pattern in the anomaly module.
+### Treatment effect design
+- Mobile: +5pp lift (new checkout suits small screens)
+- Tablet: +2pp lift
+- Desktop: +0.5pp lift (desktop users comfortable with multi-step)
+- Novelty effect: small spike days 1-7, stabilizes by day 10
+- Overall lift: ~3pp (from 5.4% to 8.3% conversion)
 
-5. **Outliers** — 2–3% of users have extreme values (power users, bots, data errors). These affect mean estimation and are realistic at that rate.
+### Techniques activated
+All eight techniques fire on this dataset:
+- **Z-test** — binary outcome, proportion test
+- **Bayesian** — Beta-Binomial model, probability treatment better
+- **CUPED** — pre_experiment_outcome as covariate (low correlation for binary, variance reduction minimal — this is honest)
+- **Sequential** — O'Brien-Fleming boundaries on daily data
+- **Anomaly detection** — 4 checks on daily metric patterns
+- **Novelty detection** — OLS on daily effect trajectory
+- **HTE** — XGBoost finds device_type as strongest modifier
+- **Segment discovery** — K-means clusters by device and tenure
 
-6. **Partial novelty effects** — The e-commerce novelty spike is small and decays quickly. The marketplace spike is large and decays slowly. These reflect published patterns for UI changes vs economic incentives respectively.
+---
+
+## Dataset 2: SaaS Onboarding Checklist
+
+**File:** `saas_onboarding.csv`
+**Experiment type:** Mean (continuous activation score)
+**Size:** 10,000 subjects — 5,000 control, 5,000 treatment
+**Duration:** 30 days
+
+### Business context
+A SaaS company tests an interactive onboarding checklist against
+their current empty dashboard. The checklist guides new trial
+users toward activation milestones (inviting a teammate, creating
+a project, connecting an integration). The outcome is an
+activation score from 0 to 100 measuring milestone completion.
+
+### What changed from the original design
+The experiment was originally designed as a proportion experiment
+(binary trial-to-paid conversion). We changed it to a mean
+experiment (continuous activation score) for a specific reason:
+**CUPED requires meaningful correlation between the pre-experiment
+covariate and the outcome. Binary outcomes have a mathematical
+ceiling on correlation (~0.35 at 12% base rate) that makes CUPED
+variance reduction negligible.**
+
+With a continuous activation score, we achieved pre-post
+correlation of 0.629, giving 39.6% variance reduction.
+
+### The central story: CUPED changes the decision
+Without CUPED: p = 0.775 — NOT significant — do not ship
+With CUPED:    p = 0.034 — SIGNIFICANT    — ship
+
+CUPED changed the business decision. This is the most important
+demonstration in the platform. A team running this experiment
+without CUPED would conclude the checklist does not work and
+abandon it. With CUPED, they would correctly identify a real
+effect and ship a feature that improves activation.
+
+### Why the lift is small (+0.12 points on a 0-100 scale)
+The average is pulled down by SMB users (85% of sample, company
+size ≤ 100 employees) who barely respond (+0.1 points). Enterprise
+users (15%, company size > 100) respond strongly (+0.8 points).
+
+The HTE analysis correctly identifies company_size as the strongest
+treatment modifier — the same insight the CUPED result implies.
+
+### Why CUPED works here
+The pre-experiment activation score captures stable user
+characteristics (engagement level, company type, plan type) that
+predict post-experiment scores. After removing 39.6% of variance
+from these predictable components, the small true effect (+0.12
+points) becomes statistically visible.
+
+### Column definitions
+
+| Column | Type | Range | Description |
+|---|---|---|---|
+| subject_id | string | saas_000000–saas_009999 | Unique user identifier |
+| variant | int | 0 or 1 | 0=control (no checklist), 1=treatment (checklist) |
+| outcome | float | 0–100 | Activation score during experiment |
+| company_size | float | 1–10,000 | Number of employees, lognormal distribution |
+| days_since_signup | float | 1–90 | Days since trial started, exponential |
+| plan_type | float | 0, 1, 2 | 0=free, 1=trial, 2=paid |
+| feature_usage_count | float | 0–25 | Features used in first week, Poisson |
+| pre_experiment_outcome | float | 0–100 | Activation score 30 days before experiment |
+| experiment_day | int | 1–30 | Day of experiment user was assigned |
+
+### Distribution choices
+- **company_size**: Lognormal(mean=3, sigma=1.5) — most companies
+  are small (1-20 employees), long tail to enterprises. Realistic
+  for a B2B SaaS product.
+- **days_since_signup**: Exponential(scale=14) — most trial users
+  are recent signups (median ~10 days). Older signups have likely
+  already converted or churned.
+- **plan_type**: 50% free, 35% trial, 15% paid — typical freemium
+  funnel distribution.
+
+### Honest limitations
+- The +0.65 baseline shift on the treatment group was engineered
+  to guarantee the p-value lands in the borderline range. Real
+  experiments do not guarantee this.
+- CUPED does not always flip the decision in real experiments.
+  This dataset shows the most instructive scenario.
+- The activation score is a proxy metric. Real activation scores
+  have floor effects (many users at 0) and ceiling effects
+  (power users maxing out) that we do not fully simulate.
+
+### Techniques activated
+All eight techniques fire on this dataset:
+- **Welch's t-test** — continuous outcome, mean test
+- **Bayesian** — Normal-Normal model
+- **CUPED** — pre_experiment_outcome with r=0.629, 39.6% reduction,
+  flips significance decision
+- **Sequential** — O'Brien-Fleming boundaries
+- **Anomaly detection** — 4 checks, all pass (clean experiment)
+- **Novelty detection** — stable, no decay (permanent UI change)
+- **HTE** — company_size as strongest modifier
+- **Segment discovery** — enterprise vs SMB clusters
+
+---
+
+## Dataset 3: Marketplace Fee Reduction
+
+**File:** `marketplace_fee.csv`
+**Experiment type:** Mean (continuous GMV per seller)
+**Size:** 10,000 sellers — 4,500 control (45%), 5,500 treatment (55%)
+**Duration:** 30 days
+
+### Business context
+A marketplace reduces the seller transaction fee from 8% to 5%
+to test whether lower fees drive increased GMV (gross merchandise
+value) per active seller. The experiment has two problems that
+make it untrustworthy.
+
+### Why this experiment is intentionally broken
+
+**Problem 1 — Broken randomization (SRM)**
+The split is 4,500 control vs 5,500 treatment — a 45/55 split
+instead of 50/50. This happened because larger sellers with higher
+GMV heard about the fee reduction through their seller network and
+self-selected into the treatment condition. The treatment group
+is not comparable to the control group.
+
+SRM detection flags this immediately with chi-squared p < 0.0001.
+
+**Problem 2 — Novelty effect**
+When fees drop, sellers immediately rush to list more items.
+This creates a temporary spike in activity that fades as sellers
+settle into a new equilibrium:
+- Days 1-5: +$12 lift (sellers flooding new listings)
+- Days 6-14: gradual decay
+- Days 15-30: +$4 steady state
+
+The apparent treatment effect (~$7 average) is inflated by both
+the novelty spike and the selection bias from SRM. The true
+sustainable effect is closer to $4 for a comparable population.
+
+### What this teaches
+This is the most important failure-mode demonstration in the
+platform. A team without proper validity checks would see:
+- Significant result (t-test p < 0.05)
+- Positive lift ($7 per seller)
+- Conclude: fee reduction works, ship it permanently
+
+With Axiom's checks they see:
+- SRM detected: groups are not comparable
+- Novelty detected: the spike will fade
+- Correct conclusion: run a properly randomized experiment
+  before making a permanent pricing decision
+
+### Column definitions
+
+| Column | Type | Range | Description |
+|---|---|---|---|
+| subject_id | string | mkt_000000–mkt_009999 | Unique seller identifier |
+| variant | int | 0 or 1 | 0=control (8% fee), 1=treatment (5% fee) |
+| outcome | float | 0–5000 | GMV per seller during experiment ($) |
+| seller_tenure_days | float | 1–1825 | Days as active seller, lognormal |
+| avg_listing_price | float | 1–500 | Average price of items listed ($) |
+| listings_count | float | 0–50 | Items listed last month, Poisson |
+| category_id | float | 0–9 | Product category (proxy) |
+| pre_experiment_outcome | float | 0–5000 | GMV per seller in prior 30 days ($) |
+| experiment_day | int | 1–30 | Day of experiment seller was assigned |
+
+### Distribution choices
+- **GMV**: Lognormal base with outliers — most sellers have
+  moderate GMV, 3% are power sellers with very high GMV. This
+  matches real marketplace distributions where a small number
+  of sellers drive disproportionate volume.
+- **seller_tenure_days**: Lognormal(mean=4.5, sigma=1.2) —
+  marketplace sellers tend to be longer-tenured than typical
+  app users. Many have been selling for 1-5 years.
+- **Treatment group tenure bias**: Treatment sellers have 20%
+  higher tenure on average (selection bias). This is what
+  creates the SRM — more experienced sellers self-selected in.
+
+### Techniques activated
+All eight techniques fire on this dataset, with important flags:
+- **Welch's t-test** — continuous GMV outcome
+- **Bayesian** — Normal-Normal model (result flagged as unreliable)
+- **CUPED** — pre_experiment_outcome with r~0.7, but result
+  untrustworthy due to SRM
+- **Sequential** — O'Brien-Fleming boundaries
+- **Anomaly detection** — variance instability detected in
+  treatment group (power sellers concentrated there due to SRM)
+- **Novelty detection** — strong decay pattern detected,
+  steady-state estimate lower than observed average
+- **HTE** — seller_tenure_days as modifier (but unreliable due to SRM)
+- **Segment discovery** — runs but flagged
 
 ---
 
 ## How to regenerate the data
 
-### Generate all three datasets and save to disk
-
 ```bash
-python scripts/generate_synthetic_data.py --save-only
-```
-
-### Upload existing CSVs to Axiom (backend must be running)
-
-```bash
-python scripts/generate_synthetic_data.py --upload-only
-```
-
-### Generate and upload in one step
-
-```bash
+# Generate all three datasets and upload to Axiom
 python scripts/generate_synthetic_data.py
+
+# Generate only (no upload)
+python scripts/generate_synthetic_data.py --save-only
+
+# Upload existing CSVs without regenerating
+python scripts/generate_synthetic_data.py --upload-only
+
+# Single experiment
+python scripts/generate_synthetic_data.py --experiment saas --upload-only
 ```
 
-### Generate only one dataset
+## How to add a new experiment
 
-```bash
-python scripts/generate_synthetic_data.py --experiment ecommerce --save-only
-python scripts/generate_synthetic_data.py --experiment saas --save-only
-python scripts/generate_synthetic_data.py --experiment marketplace --save-only
-```
+1. Add a generator function `generate_<name>()` to
+   `scripts/generate_synthetic_data.py` following the same
+   pattern as the existing three.
+2. Add the experiment to the `datasets` dict in `main()`.
+3. Add a seed experiment in `backend/migrations/seeds.py`.
+4. Document the dataset in this README.
 
-### Changing parameters
-
-The key constants are at the top of `scripts/generate_synthetic_data.py`:
-
-```python
-N_DAYS = 30        # experiment duration (affects sequential and novelty modules)
-N_PER_GROUP = 5_000  # subjects per group (affects power and CUPED clarity)
-BATCH_SIZE = 5_000   # upload batch size (do not exceed 5000 -- PG parameter limit)
-```
-
-The RNG seed is fixed at `2026` for reproducibility. Change it to get a different random realization of the same distributions.
-
-### Adding a new experiment
-
-1. Create an experiment in Axiom via the UI or API
-2. Write a new `generate_<name>(rng)` function following the pattern above
-3. Include `pre_experiment_outcome` for CUPED, `experiment_day` for sequential/novelty, and feature columns for HTE/segments
-4. Add an entry to the `datasets` dict in `main()`
-5. Run `python scripts/generate_synthetic_data.py --experiment <name>`
+Key design principles for new datasets:
+- **Each dataset tells one clear story** — what technique does
+  it demonstrate that the others don't?
+- **Use realistic distributions** — lognormal for money,
+  exponential for tenure, Poisson for counts.
+- **Inject realistic noise** — real experiments are messy.
+  A perfectly clean result is suspicious.
+- **Be honest about limitations** — document what the synthetic
+  data cannot capture.
