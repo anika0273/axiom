@@ -332,7 +332,19 @@ function buildAct2(result, cuped, bayesian) {
   }
 
   let cupedPara = null
-  if (cuped && Number(cuped.variance_reduction_pct) > 5) {
+  if (cuped && Number(cuped.variance_reduction_pct) <= 5 && Number(cuped.variance_reduction_pct) >= 0) {
+    // CUPED ran but variance reduction was negligible — explain why honestly
+    const reduction = Number(cuped.variance_reduction_pct).toFixed(1)
+    const correlation = Number(cuped.correlation_pre_post).toFixed(2)
+    const isBinaryLimitation = Math.abs(Number(cuped.correlation_pre_post)) < 0.1
+    cupedPara = isBinaryLimitation
+      ? `We ran CUPED (Controlled-experiment Using Pre-Experiment Data) but variance reduction was minimal (${reduction}%). ` +
+        `This is expected when the pre-experiment covariate is binary (0 or 1) — two binary variables have a mathematical correlation ceiling that limits CUPED's effectiveness. ` +
+        `To get meaningful variance reduction here, you would need a continuous pre-experiment covariate such as number of sessions, total spend, or page views in the 30 days before the experiment.`
+      : `We ran CUPED but variance reduction was minimal (${reduction}%, correlation=${correlation}). ` +
+        `The pre-experiment covariate has low predictive power for this outcome, so CUPED had little effect. ` +
+        `A stronger covariate — one more directly related to the outcome — would give better results.`
+  } else if (cuped && Number(cuped.variance_reduction_pct) > 5) {
     const rawP = cuped.unadjusted_test_result?.p_value
     const adjP = cuped.adjusted_test_result?.p_value
     const reduction = Number(cuped.variance_reduction_pct).toFixed(1)
