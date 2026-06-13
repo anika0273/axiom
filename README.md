@@ -5,7 +5,7 @@
 ![Coverage](https://img.shields.io/badge/Coverage-85%25-22c55e)
 ![License](https://img.shields.io/badge/License-MIT-6366f1)
 
-**[GitHub](https://github.com/anika0273/axiom)** · Live demo coming soon
+**[GitHub](https://github.com/anika0273/axiom)** · **[Live Demo](https://axiom-gamma-cyan.vercel.app)**
 
 ---
 
