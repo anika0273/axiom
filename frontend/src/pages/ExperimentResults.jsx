@@ -20,8 +20,7 @@ import NoveltyPanel from '../components/results/NoveltyPanel'
 import AIInterpretationPanel from '../components/results/AIInterpretationPanel'
 import MetricComparisonChart from '../components/charts/MetricComparisonChart'
 import SequentialChart from '../components/charts/SequentialChart'
-
-const API_BASE = 'http://localhost:8000'
+import { API_BASE } from '../config/api'
 
 const REC_LABELS = {
   STOP_WIN: 'SHIP',

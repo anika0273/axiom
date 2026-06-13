@@ -3,8 +3,7 @@ import Papa from "papaparse"
 import { CheckCircle2, UploadCloud, XCircle } from "lucide-react"
 import Button from "../ui/Button"
 import Card from "../ui/Card"
-
-const API_BASE = "http://localhost:8000"
+import { API_BASE } from '../../config/api'
 const CHUNK_SIZE = 5000
 const MAX_BYTES = 52_428_800 // 50 MB
 

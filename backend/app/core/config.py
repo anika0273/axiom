@@ -36,7 +36,13 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
 
     # ── CORS ──────────────────────────────────────────────────────────────────
-    ALLOWED_ORIGINS: str = "http://localhost:5173"
+    # Comma-separated list of allowed origins; pydantic_settings reads as str to
+    # avoid JSON-parsing the env var before our validator can handle it.
+    ALLOWED_ORIGINS: str = "http://localhost,http://localhost:3000,http://localhost:5173"
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
 
 
 settings = Settings()

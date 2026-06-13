@@ -20,7 +20,8 @@ import EmptyState from '../components/ui/EmptyState'
 import NetworkError from '../components/errors/NetworkError'
 import APIError from '../components/errors/APIError'
 
-const API_BASE = 'http://localhost:8000'
+import { API_BASE } from '../config/api'
+
 const PAGE_SIZE = 10
 const FETCH_LIMIT = 100
 

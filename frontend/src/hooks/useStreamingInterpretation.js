@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-
-const API_BASE = 'http://localhost:8000'
+import { API_BASE } from '../config/api'
 
 /**
  * Opens an SSE connection to the interpret endpoint and accumulates streamed text.

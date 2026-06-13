@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { BarChart2, CheckCircle2, UploadCloud } from "lucide-react"
-
-const API_BASE = "http://localhost:8000"
+import { API_BASE } from '../config/api'
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 

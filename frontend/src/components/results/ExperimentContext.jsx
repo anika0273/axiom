@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ChevronDown } from 'lucide-react'
-
-const API_BASE = 'http://localhost:8000'
+import { API_BASE } from '../../config/api'
 
 const CRITEO_BLURB =
   'The data comes from the Criteo Uplift Modeling Dataset (f0–f11) — a real randomized experiment run by Criteo, an ad technology company, with 14 million rows and 12 anonymized behavioral signals. Feature names are anonymized for privacy but the experiment and outcomes are real. This is a published benchmark dataset used in academic causal inference research.'
