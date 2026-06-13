@@ -2,18 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://axiom-backend.onrender.com/api/$1"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        }
-      ]
+      "destination": "https://axiom-backend-3z09.onrender.com/api/$1"
     }
   ]
 }
