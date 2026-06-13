@@ -21,7 +21,6 @@ services:
       - key: DEBUG
         value: false
     healthCheckPath: /api/v1/stats/health
-    preDeployCommand: "PYTHONPATH=backend alembic upgrade head"
 
 databases:
   - name: axiom-db
