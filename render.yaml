@@ -21,14 +21,7 @@ services:
       - key: DEBUG
         value: false
     healthCheckPath: /api/v1/stats/health
-    buildCommand: ""
-    startCommand: >
-      sh -c "
-        PYTHONPATH=backend alembic upgrade head &&
-        PYTHONPATH=backend uvicorn app.main:app
-        --host 0.0.0.0
-        --port $PORT
-      "
+    preDeployCommand: "PYTHONPATH=backend alembic upgrade head"
 
 databases:
   - name: axiom-db
