@@ -5,7 +5,7 @@ import { API_BASE } from '../../config/api'
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 const CRITEO_BLURB =
-  'The data comes from the Criteo Uplift Modeling Dataset (f0–f11) — a real randomized experiment run by Criteo, an ad technology company, with 14 million rows and 12 anonymized behavioral signals. Feature names are anonymized for privacy but the experiment and outcomes are real. This is a published benchmark dataset used in academic causal inference research.'
+  'The data comes from the Criteo Uplift Modeling Dataset (f0–f11) — a real randomized experiment run by Criteo, an ad technology company, with 14 million rows and 12 anonymized behavioral signals. We use a 10,000 row sample for this demo: the full dataset would exceed the compute limits of this free-tier environment, and at 14M rows statistical significance becomes trivial (p → 0 for any difference). In production, the stats engine runs on the full dataset while the ML pipeline samples for efficiency — a standard pattern used by Statsig, Optimizely, and most experimentation platforms. Feature names are anonymized for privacy but the experiment and outcomes are real.'
 
 function isCriteo(name = '') {
   return /saas|onboarding/i.test(name)
@@ -61,7 +61,7 @@ function getDemoContent(name = '') {
       label: '🧪 Synthetic — designed to show clean HTE',
       title: 'What this demo shows',
       story:
-        'This experiment demonstrates a CLEAN result with HETEROGENEOUS TREATMENT EFFECTS. The overall conversion lift is real and significant — but the average conceals that mobile users respond 5× better than desktop users. The HTE analysis finds this automatically.\n\nThe pre-experiment covariate is binary (0/1), which limits CUPED variance reduction — this is intentional and honest. Binary covariates have a mathematical correlation ceiling that makes CUPED ineffective for proportion experiments.',
+        'This experiment demonstrates a CLEAN result with HETEROGENEOUS TREATMENT EFFECTS. The overall conversion lift is real and significant — but the average conceals that mobile users respond 5× better than desktop users. The HTE analysis finds this automatically.\n\nThe pre-experiment covariate is binary (0/1), which limits CUPED variance reduction — this is intentional and honest. Binary covariates have a mathematical correlation ceiling that makes CUPED ineffective for proportion experiments.\n\nThe outcome is binary (converted = 1, didn\'t = 0). This is the most common A/B test outcome type.\n\nDistributions used: device_type (40% mobile, 20% tablet, 40% desktop — realistic for mid-size e-commerce). cart_value uses lognormal distribution (median ~$33, long tail to high values — matches real purchase data). user_tenure is exponential (most users are newer, long tail of veterans).\n\nTreatment effect was designed to be heterogeneous: mobile users benefit most from a simplified checkout (+5pp), tablet users moderately (+2pp), desktop barely (+0.5pp). This heterogeneity is realistic — simplified checkouts disproportionately help small-screen users.',
     }
   }
   if (/saas|onboarding/.test(n)) {
@@ -69,7 +69,7 @@ function getDemoContent(name = '') {
       label: '🧪 Synthetic — designed to show CUPED flip',
       title: 'What this demo shows',
       story:
-        'This experiment demonstrates CUPED CHANGING A BUSINESS DECISION. The standard frequentist test says NOT significant (p=0.775). After CUPED variance reduction (39.6%), the adjusted result is SIGNIFICANT (p=0.034). Without CUPED, a team would abandon a feature that genuinely works.\n\nThe outcome is a continuous activation score (0-100) because CUPED requires a continuous pre-experiment covariate to achieve meaningful variance reduction. Binary outcomes hit a correlation ceiling that makes CUPED ineffective.',
+        'This experiment demonstrates CUPED CHANGING A BUSINESS DECISION. The standard frequentist test says NOT significant (p=0.775). After CUPED variance reduction (39.6%), the adjusted result is SIGNIFICANT (p=0.034). Without CUPED, a team would abandon a feature that genuinely works.\n\nThe outcome is a continuous activation score (0-100) because CUPED requires a continuous pre-experiment covariate to achieve meaningful variance reduction. Binary outcomes hit a correlation ceiling that makes CUPED ineffective.\n\nWhy 10,000 rows and not the full 14 million from Criteo? Three reasons: (1) The free hosting tier (Render) has 512MB RAM — XGBoost and K-means on 14M rows would crash it. (2) At 14M rows, p-values approach zero for any difference, making significance trivial and uninformative. (3) 10,000 rows creates realistic statistical tension — the experiment is borderline without CUPED, which is exactly the scenario we want to demonstrate.\n\nThe outcome (activation score 0-100) is continuous, not binary. This matters because: CUPED works much better with continuous outcomes (correlation can reach 0.6-0.9 vs 0.1-0.3 for binary). The t-test is the right test for continuous means. Bayesian analysis uses the Normal-Normal model instead of Beta-Binomial.',
     }
   }
   if (/marketplace|fee|seller/.test(n)) {
@@ -77,7 +77,7 @@ function getDemoContent(name = '') {
       label: '🧪 Synthetic — designed to show broken experiment',
       title: 'What this demo shows',
       story:
-        'This experiment demonstrates a BROKEN EXPERIMENT that looks like a win. Two problems make the result untrustworthy:\n\n1. Sample Ratio Mismatch (55/45 split instead of 50/50) — larger sellers self-selected into treatment, creating selection bias.\n\n2. Novelty effect — sellers rushed to list items when fees dropped, creating a temporary spike that will fade.\n\nSRM detection catches this before you look at results. The correct decision is to run a properly randomized experiment before making a permanent pricing change.',
+        'This experiment demonstrates a BROKEN EXPERIMENT that looks like a win. Two problems make the result untrustworthy:\n\n1. Sample Ratio Mismatch (55/45 split instead of 50/50) — larger sellers self-selected into treatment, creating selection bias.\n\n2. Novelty effect — sellers rushed to list items when fees dropped, creating a temporary spike that will fade.\n\nSRM detection catches this before you look at results. The correct decision is to run a properly randomized experiment before making a permanent pricing change.\n\nThe outcome is continuous GMV per seller (dollars). Distribution: lognormal base (most sellers have moderate GMV, a few power sellers have very high GMV) with 3% outliers at 8× the normal rate — realistic for marketplace data.\n\nThe broken randomization (55/45 split) was designed to simulate self-selection: larger, more experienced sellers heard about the fee reduction through their network and found ways to opt into treatment. This is the most common real-world cause of SRM in marketplace experiments.',
     }
   }
   return {
@@ -454,11 +454,40 @@ export default function ExperimentContext({ experiment, dataSource }) {
         <p style={paramValueStyle}>
           {expType === 'proportion' ? 'Proportion experiment' : 'Mean experiment'}
         </p>
-        <p style={paramExplainStyle}>
-          {expType === 'proportion'
-            ? "Your outcome is binary — each user either converts or doesn't. The z-test is designed for this."
-            : "Your outcome is a continuous number. Welch's t-test compares averages and doesn't assume equal variance between groups."}
-        </p>
+        {expType === 'proportion' ? (
+          <>
+            <p style={{ ...paramExplainStyle, marginBottom: 6 }}>
+              <strong style={{ color: 'var(--color-text-primary)' }}>Outcome type: Binary (0 or 1)</strong>
+            </p>
+            <p style={{ ...paramExplainStyle, marginBottom: 6 }}>
+              Each user either converts or doesn't — there is no in-between. This is the most common A/B test outcome.
+            </p>
+            <p style={{ ...paramExplainStyle, marginBottom: 6 }}>
+              Examples: purchased vs didn't purchase, clicked vs didn't click, signed up vs didn't sign up.
+            </p>
+            <p style={paramExplainStyle}>
+              Test used: Z-test for proportions. Works because with large samples, the distribution of a proportion approaches normal (Central Limit Theorem). We compare p₁ vs p₂ where p = conversions / total users.
+            </p>
+          </>
+        ) : (
+          <>
+            <p style={{ ...paramExplainStyle, marginBottom: 6 }}>
+              <strong style={{ color: 'var(--color-text-primary)' }}>Outcome type: Continuous (numeric score or value)</strong>
+            </p>
+            <p style={{ ...paramExplainStyle, marginBottom: 6 }}>
+              Each user gets a numeric measurement — a score, revenue amount, duration, or any other number. This allows more nuance than binary outcomes.
+            </p>
+            <p style={{ ...paramExplainStyle, marginBottom: 6 }}>
+              Examples: activation score (0-100), revenue per user ($), session duration (seconds), items per order.
+            </p>
+            <p style={{ ...paramExplainStyle, marginBottom: 6 }}>
+              Test used: Welch's t-test. Unlike Student's t-test, Welch's doesn't assume equal variance between groups — which is important because treatment effects often change variance as well as mean.
+            </p>
+            <p style={paramExplainStyle}>
+              Note: You could turn a continuous outcome into binary by picking a threshold (e.g. 'activated = score ≥ 60') but you lose information by doing so. The continuous version is more statistically powerful.
+            </p>
+          </>
+        )}
       </div>
 
       {mdeFormatted && (

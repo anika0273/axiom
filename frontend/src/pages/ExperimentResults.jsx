@@ -22,6 +22,15 @@ import MetricComparisonChart from '../components/charts/MetricComparisonChart'
 import SequentialChart from '../components/charts/SequentialChart'
 import { API_BASE } from '../config/api'
 
+const DEMO_EXPERIMENT_NAMES = [
+  'E-Commerce Checkout Redesign',
+  'SaaS Onboarding Checklist',
+  'Marketplace Fee Reduction',
+]
+function isDemoExperiment(experiment) {
+  return DEMO_EXPERIMENT_NAMES.includes(experiment?.name)
+}
+
 const REC_LABELS = {
   STOP_WIN: 'SHIP',
   STOP_LOSE: 'DO NOT SHIP',
@@ -403,14 +412,16 @@ export default function ExperimentResults() {
             controlCount={null}
             treatmentCount={null}
           />
-          <UploadDataPanel
-            experimentId={id}
-            experiment={experiment}
-            onUploadComplete={(newResult) => {
-              setLiveResult(newResult)
-              setTimeout(refetch, 1000)
-            }}
-          />
+          {!isDemoExperiment(experiment) && (
+            <UploadDataPanel
+              experimentId={id}
+              experiment={experiment}
+              onUploadComplete={(newResult) => {
+                setLiveResult(newResult)
+                setTimeout(refetch, 1000)
+              }}
+            />
+          )}
           <Card className="p-8 text-center">
             <p
               className="font-display text-lg font-bold mb-2"
@@ -439,7 +450,7 @@ export default function ExperimentResults() {
         <>
           <ExperimentContext
             experiment={experiment}
-            dataSource={liveResult?.data_source ?? 'synthetic'}
+            dataSource={isDemoExperiment(experiment) ? 'synthetic' : (liveResult?.data_source ?? 'synthetic')}
             subjectCount={
               liveResult
                 ? (liveResult.stats?.primary_result?.control_n ?? null) +
@@ -450,8 +461,8 @@ export default function ExperimentResults() {
             treatmentCount={null}
           />
 
-          {/* Upload panel — shown only when data is synthetic */}
-          {(liveResult?.data_source ?? 'synthetic') === 'synthetic' && (
+          {/* Upload panel — shown only for non-demo experiments with synthetic data */}
+          {!isDemoExperiment(experiment) && (liveResult?.data_source ?? 'synthetic') === 'synthetic' && (
             <UploadDataPanel
               experimentId={id}
               experiment={experiment}

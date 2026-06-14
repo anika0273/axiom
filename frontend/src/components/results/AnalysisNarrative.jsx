@@ -557,7 +557,7 @@ function buildAct4(result, techniques) {
   }
 }
 
-function buildAct5(result, techniques) {
+function buildAct5(result, techniques, cuped) {
   const {
     isSignificant,
     canTrust,
@@ -567,6 +567,7 @@ function buildAct5(result, techniques) {
     warnings = [],
     hte,
     recommendation,
+    anomaly,
   } = result
 
   const pValueFmt  = pValue  != null ? pValue.toFixed(4)  : "?"
@@ -578,13 +579,22 @@ function buildAct5(result, techniques) {
     return text.toLowerCase().includes("underpowered")
   })
 
+  const cupedFlipsDecision =
+    cuped != null &&
+    cuped.unadjusted_test_result?.is_significant === false &&
+    cuped.adjusted_test_result?.is_significant === true
+
+  const srmDetected = anomaly?.checks?.some(
+    (c) => !c.passed && c.name?.includes("srm"),
+  )
+
   let status, statusLabel, openingSentence
 
   if (!canTrust) {
     status = "INVALID"
     statusLabel = "INVALID"
     openingSentence =
-      "The experiment data could not be trusted. A critical data quality issue was detected that prevents reliable conclusions."
+      "This experiment cannot be trusted. A Sample Ratio Mismatch (SRM) was detected — the randomization is broken. The apparent lift is meaningless until you fix the assignment process."
   } else if (isSignificant && !hasNovelty) {
     status = "SHIP"
     statusLabel = "SHIP"
@@ -595,6 +605,15 @@ function buildAct5(result, techniques) {
     statusLabel = "CAUTION"
     openingSentence =
       "The experiment is significant, but a novelty effect was detected. Proceed with caution — the long-term impact may be lower than what the data currently shows."
+  } else if (cupedFlipsDecision) {
+    status = "SHIP"
+    statusLabel = "SHIP — via CUPED"
+    openingSentence =
+      "The standard frequentist test did not reach significance (p=" +
+      (cuped?.unadjusted_test_result?.p_value?.toFixed(3) ?? "?") +
+      "). However, CUPED variance reduction — which removes natural user variation to reveal the true signal — finds the effect IS significant (p=" +
+      (cuped?.adjusted_test_result?.p_value?.toFixed(3) ?? "?") +
+      "). CUPED changed the business decision."
   } else if (isUnderpowered) {
     status = "KEEP RUNNING"
     statusLabel = "KEEP RUNNING"
@@ -607,14 +626,14 @@ function buildAct5(result, techniques) {
       "The experiment did not produce a statistically significant result. There is not enough evidence to conclude that the treatment has a real effect."
   }
 
-  const srmFailed = result.anomaly?.checks?.some(
-    (c) =>
-      !c.passed &&
-      (c.name?.toLowerCase().includes("srm") ||
-        c.name?.toLowerCase().includes("sample_ratio")),
-  )
-  const randomizationSummary = result.anomaly
-    ? srmFailed
+  const invalidGuidance = !canTrust
+    ? srmDetected
+      ? "What to do next: (1) Fix the randomization — use deterministic hashing (hash(user_id) % 2) to assign users, never allow self-selection. (2) Run a new experiment from scratch. (3) Check whether the split was broken at assignment time or data collection time. A properly randomized re-run will give you a result you can trust."
+      : "What to do next: Investigate the data quality issue before drawing any conclusions from this experiment."
+    : null
+
+  const randomizationSummary = anomaly
+    ? srmDetected
       ? "had critical issues (SRM detected)"
       : "passed all checks"
     : "was not checked (no time-series data provided)"
@@ -645,6 +664,9 @@ function buildAct5(result, techniques) {
   const story = (
     <>
       <p style={{ margin: "0 0 8px 0" }}>{openingSentence}</p>
+      {invalidGuidance && (
+        <p style={{ margin: "0 0 8px 0" }}>{invalidGuidance}</p>
+      )}
       <p style={{ margin: recommendation || techniques ? "0 0 8px 0" : 0 }}>{body}</p>
       {recommendation && (
         <p style={{ margin: techniques ? "0 0 8px 0" : 0 }}>
@@ -683,7 +705,7 @@ export default function AnalysisNarrative({ result, experiment, bayesian, cuped,
     { step: "02", title: "What the data showed",             ...buildAct2(result, cuped, bayesian) },
     { step: "03", title: "Who does it actually help?",       ...buildAct3(result) },
     { step: "04", title: "Is the effect stable over time?",  ...buildAct4(result, techniques) },
-    { step: "05", title: "The verdict",                      ...buildAct5(result, techniques) },
+    { step: "05", title: "The verdict",                      ...buildAct5(result, techniques, cuped) },
   ]
 
   return (
