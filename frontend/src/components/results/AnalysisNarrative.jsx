@@ -668,12 +668,12 @@ function buildAct5(result, techniques, cuped) {
         <p style={{ margin: "0 0 8px 0" }}>{invalidGuidance}</p>
       )}
       <p style={{ margin: recommendation || techniques ? "0 0 8px 0" : 0 }}>{body}</p>
-      {recommendation && (
+      {(recommendation || cupedFlipsDecision) && (
         <p style={{ margin: techniques ? "0 0 8px 0" : 0 }}>
           <strong style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>
             Recommendation:
           </strong>{" "}
-          {recommendation}
+          {cupedFlipsDecision ? "SHIP — the CUPED-adjusted result is significant. The effect is real but hidden by natural user variation. Trust the variance-reduced estimate." : recommendation}
         </p>
       )}
       <TechniquesChecklist techniques={techniques} />
